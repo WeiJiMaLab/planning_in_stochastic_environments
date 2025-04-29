@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Treasure Game</title>
+
+    <script src="https://unpkg.com/jspsych@7.3.0"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-html-button-response@1.1.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-image-keyboard-response@1.1.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-fullscreen@1.1.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-instructions@1.1.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey@0.2.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-likert@1.1.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-html-form@1.0.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-multi-choice@1.1.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-multi-select@1.1.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-survey-text@1.1.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-preload@1.1.1"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-call-function@1.1.2"></script>
+    <script src="https://unpkg.com/@jspsych/plugin-browser-check@1.0.2"></script>
+    <link rel="stylesheet" href="https://unpkg.com/@jspsych/plugin-survey@0.2.1/css/survey.css">
+    <link href="https://unpkg.com/jspsych@7.3.0/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+    
+
+    <script type="text/javascript">
+      //initialize global jsPsych
+      var jsPsych = initJsPsych()
+    </script>
+
+    <script type="module" src="./game.js"></script>
+    <script type="text/javascript" src="./boards/practice0.js"></script>
+    <script type="text/javascript" src="./boards/practice1.js"></script>
+    <script type="text/javascript" src="./boards/practice2.js"></script>
+    <script type="text/javascript" src="./boards/practice3.js"></script>
+    <script type="text/javascript" src="./boards/practice4.js"></script>
+    <script type="text/javascript" src="./boards/boards_mode1_group1.js"></script>
+    <script type="text/javascript" src="./boards/boards_mode2_group1.js"></script>
+    <script type="text/javascript" src="./boards/boards_mode3_group1.js"></script>
+    <script type="text/javascript" src="./boards/boards_mode4_group1.js"></script>
+    <script type="text/javascript" src="./boards/boards_mode1_group2.js"></script>
+    <script type="text/javascript" src="./boards/boards_mode2_group2.js"></script>
+    <script type="text/javascript" src="./boards/boards_mode3_group2.js"></script>
+    <script type="text/javascript" src="./boards/boards_mode4_group2.js"></script>
+    <script type="text/javascript" src="./boards/boards_attention_check.js"></script>
+    <link href="./style.css" rel="stylesheet" type="text/css" />
+    
+  </head>
+  <body></body>
+  <script type = "module">
+    import { experiment} from './modules/experiment.js'
+    import { config, makeId } from './modules/utils.js'
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.9.4/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/9.9.4/firebase-analytics.js";
+    import { getDatabase, ref, set, get, push, onValue} from "https://www.gstatic.com/firebasejs/9.9.4/firebase-database.js"
+
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+
+    // Your web app's Firebase configuration
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+    const firebaseConfig = {
+      apiKey: "AIzaSyCU886K-io4NuDJS9Okc9qRLWmYNvbpwnY",
+      authDomain: "pirate-treasure-9e3ba.firebaseapp.com",
+      projectId: "pirate-treasure-9e3ba",
+      storageBucket: "pirate-treasure-9e3ba.appspot.com",
+      messagingSenderId: "1084842642049",
+      appId: "1:1084842642049:web:39a60b8f9c76ed0a2d9b80",
+      measurementId: "G-17HLBXEHFF"
+    };
+
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+    const prolific_id = urlParams.get('prolific_id')
+    const study_id = urlParams.get('study_id')
+    const session_id = urlParams.get('session_id')
+    const stoch_type = urlParams.get('type')
+
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const database = getDatabase();
+
+    config.ref = ref
+    config.database = database 
+    config.set = set 
+    config.push = push
+    config.get = get
+    config.prolific_id = prolific_id
+    config.study_id = study_id
+    config.session_id = session_id
+    config.id = makeId("prolific_id-" + prolific_id + "-study_id-" + study_id + "-session_id-" + session_id)
+    config.stoch_type = stoch_type
+    config.counter = 0
+    config.on_value = onValue
+    config.demo = false
+    
+    // initialize timeline
+    var timeline = []
+
+    // add experiment details
+    experiment(timeline)
+
+    // run experiment
+    jsPsych.run(timeline)
+  </script>
+</html>
