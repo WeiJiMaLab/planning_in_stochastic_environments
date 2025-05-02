@@ -12,8 +12,8 @@ from utils import colormaps
 folder = "final_fit"
 
 for filter_fn in ["filter_depth"]:
-    for value_fn in ["value_EV"]:
-        for type_ in ["R", "T"]:
+    for value_fn in ["value_path", "value_sum", "value_max"]:
+        for type_ in ["R", "V", "T"]:
             os.makedirs(f"figures/{folder}/{filter_fn}.{value_fn}", exist_ok=True)
             colormap_ = {"R": colormaps["arctic"], "T": colormaps["berry"], "V": colormaps["grass"]}
             colormap = colormap_[type_]

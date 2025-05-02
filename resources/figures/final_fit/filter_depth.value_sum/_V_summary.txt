@@ -3,11 +3,13 @@ Stochasticity vs Reaction Time Regression Analysis
 Stochasticity vs Reward Regression Analysis LMM
 \beta = -1.26, t_104899.00 = -58.16, p < 10^{-10}
 Greedy Value vs Choice LeftRegression Analysis GLMM
-\beta = -0.371, \chi^2(1) = 3241.73, p < 10^{-10}
+Main effect of x: β = 0.295, χ²(1) = 23092.9, p < 10^{-10}
+Interaction effect: interaction β = -0.371, χ²(1) = 3241.7, p < 10^{-10}
 -----------------------------------
 [Model] Stochasticity vs Depth Regression Analysis
 \beta = -0.61, t_399.00 = -7.01, p < 10^{-10}
 [Model] Stochasticity vs Reward Regression Analysis LMM
-\beta = -1.17, t_104899.00 = -53.90, p < 10^{-10}
+\beta = -1.18, t_104899.00 = -53.96, p < 10^{-10}
 [Model] Greedy Value vs Choice LeftRegression Analysis GLMM
-\beta = -0.325, \chi^2(1) = 2717.86, p < 10^{-10}
+Main effect of x: β = 0.270, χ²(1) = 20188.1, p < 10^{-10}
+Interaction effect: interaction β = -0.329, χ²(1) = 2790.6, p < 10^{-10}

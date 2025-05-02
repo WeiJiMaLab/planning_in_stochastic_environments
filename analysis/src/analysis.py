@@ -25,24 +25,36 @@ def lmm(df):
     p_val = model.coefs.loc['conditions', 'P-val']
     return f"\\beta = {beta:.2f}, t_{dof:.2f} = {t_val:.2f}, {report_p_value(p_val)}\n"
 
-def glmm(df): 
-    # combined = xr.Dataset({"x": x, "y": y.astype(int)})
-    # df = combined.stack().to_dataframe().reset_index(drop = True)
+def glmm(df):
+    # Full model with interaction
+    full = Lmer("y ~ x * conditions + (1|participants)", data=df, family="binomial")
+    full_res = full.fit(verbose=True)
 
-    # Create the full model with interaction
-    full_model = Lmer("y ~ x * conditions + (1|participants)", data=df, family="binomial")
-    out = full_model.fit(verbose = True);
+    # Reduced model without interaction (testing interaction)
+    no_interaction = Lmer("y ~ x + conditions + (1|participants)", data=df, family="binomial")
+    no_interaction_res = no_interaction.fit()
 
-    # Create reduced model without interaction
-    reduced_model = Lmer("y ~ x + conditions + (1|participants)", data=df, family="binomial")
-    reduced_model.fit();
+    # Reduced model without x (testing main effect of x)
+    no_x = Lmer("y ~ conditions + (1|participants)", data=df, family="binomial")
+    no_x.fit()
 
-    beta = out.loc['x:conditions', 'Estimate']
-    chi_squared = 2 * (full_model.logLike - reduced_model.logLike)          
-    dof = full_model.coefs.shape[0] - reduced_model.coefs.shape[0]
-    p_value = chi2.sf(chi_squared, dof)
+    # Interaction test
+    chi2_inter = 2 * (full.logLike - no_interaction.logLike)
+    dof_inter = full.coefs.shape[0] - no_interaction.coefs.shape[0]
+    pval_inter = chi2.sf(chi2_inter, dof_inter)
 
-    return f"\\beta = {beta}, \\chi^2({dof}) = {chi_squared:.2f}, {report_p_value(p_value)}\n"
+    # Main effect test
+    chi2_x = 2 * (no_interaction.logLike - no_x.logLike)
+    dof_x = no_interaction.coefs.shape[0] - no_x.coefs.shape[0]
+    pval_x = chi2.sf(chi2_x, dof_x)
+
+    beta_x = no_interaction_res.loc['x', 'Estimate']
+    beta_int = full_res.loc['x:conditions', 'Estimate']
+
+    return (
+        f"Main effect of x: β = {beta_x:.3f}, χ²({dof_x}) = {chi2_x:.1f}, {report_p_value(pval_x)}\n"
+        f"Interaction effect: interaction β = {beta_int:.3f}, χ²({dof_inter}) = {chi2_inter:.1f}, {report_p_value(pval_inter)}\n"
+    )
 
 def bootstrap(x, n = 1e4): 
     n_samps = len(x)
