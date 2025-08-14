@@ -12,31 +12,46 @@ from scipy.stats import chi2
 from utils import report_p_value
 
 
-def lmm(df): 
+def lmm(df, random_slopes = True): 
     # combined = xr.Dataset({"y": y})
     # df = combined.stack(flat_dim=list(y.coords)).to_dataframe().reset_index(drop = True)
 
-    model = Lmer("y ~ conditions + (1|participants)", data=df)
+    if random_slopes: 
+        model = Lmer("y ~ conditions + (1 + conditions|participants)", data=df)
+        model_str = "y ~ conditions + (1 + conditions|participants)"
+    else: 
+        model = Lmer("y ~ conditions + (1|participants)", data=df)
+        model_str = "y ~ conditions + (1|participants)"
+
     result = model.fit()
 
     beta = model.coefs.loc['conditions', 'Estimate']
     t_val = model.coefs.loc['conditions', 'T-stat']
     dof = model.coefs.loc['conditions', 'DF']
     p_val = model.coefs.loc['conditions', 'P-val']
-    return f"\\beta = {beta:.2f}, t_{dof:.2f} = {t_val:.2f}, {report_p_value(p_val)}\n"
+    return f"Model: {model_str}\n$\\beta = {beta:.2f}$, $t_{{{int(round(dof))}}} = {t_val:.2f}$, ${report_p_value(p_val)}$\n"
 
-def glmm(df):
+def glmm(df, random_slopes = True):
     # Full model with interaction
-    full = Lmer("y ~ x * conditions + (1|participants)", data=df, family="binomial")
+    if random_slopes: 
+        full = Lmer("y ~ x * conditions + (1 + x + conditions|participants)", data=df, family="binomial")
+        no_interaction = Lmer("y ~ x + conditions + (1 + x + conditions|participants)", data=df, family="binomial")
+        no_x = Lmer("y ~ conditions + (1 + conditions|participants)", data=df, family="binomial")
+        model_str = "y ~ x * conditions + (1 + x + conditions|participants)"
+
+    else: 
+        full = Lmer("y ~ x * conditions + (1|participants)", data=df, family="binomial")
+        no_interaction = Lmer("y ~ x + conditions + (1|participants)", data=df, family="binomial")
+        no_x = Lmer("y ~ conditions + (1|participants)", data=df, family="binomial")
+        model_str = "y ~ x * conditions + (1|participants)"
+
     full_res = full.fit(verbose=True)
 
     # Reduced model without interaction (testing interaction)
-    no_interaction = Lmer("y ~ x + conditions + (1|participants)", data=df, family="binomial")
     no_interaction_res = no_interaction.fit()
 
     # Reduced model without x (testing main effect of x)
-    no_x = Lmer("y ~ conditions + (1|participants)", data=df, family="binomial")
-    no_x.fit()
+    no_x_res = no_x.fit()
 
     # Interaction test
     chi2_inter = 2 * (full.logLike - no_interaction.logLike)
@@ -52,8 +67,9 @@ def glmm(df):
     beta_int = full_res.loc['x:conditions', 'Estimate']
 
     return (
-        f"Main effect of x: β = {beta_x:.3f}, χ²({dof_x}) = {chi2_x:.1f}, {report_p_value(pval_x)}\n"
-        f"Interaction effect: interaction β = {beta_int:.3f}, χ²({dof_inter}) = {chi2_inter:.1f}, {report_p_value(pval_inter)}\n"
+        f"Model: {model_str}\n"
+        f"Main effect of x: $\\beta = {beta_x:.3f}$, $\\chi^2({dof_x}) = {chi2_x:.1f}$, ${report_p_value(pval_x)}$\n"
+        f"Interaction effect: interaction $\\beta = {beta_int:.3f}$, $\\chi^2({dof_inter}) = {chi2_inter:.1f}$, ${report_p_value(pval_inter)}$\n"
     )
 
 def bootstrap(x, n = 1e4): 

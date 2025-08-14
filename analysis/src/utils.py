@@ -20,7 +20,7 @@ def report_p_value(p):
         mantissa, exponent = p_str.split('e')
         # Remove leading zero from exponent
         exponent = str(int(exponent))
-        return f"p = {mantissa} \\times 10^{exponent}"
+        return f"p = {mantissa} \\times 10^{{{exponent}}}"
 
 def get_conditions(gametype):  
     if gametype == "T": 

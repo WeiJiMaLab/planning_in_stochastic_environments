@@ -82,24 +82,30 @@ for filter_fn in ["filter_depth"]:
             plt.savefig(f"figures/{folder}/{filter_fn}.{value_fn}/{type_}_label_diff_vs_choice_model.svg", transparent=True)
 
             with open(f"figures/{folder}/{filter_fn}.{value_fn}/_{type_}_summary.txt", "w") as f:
-                f.write(f"Stochasticity vs Reaction Time Regression Analysis\n")
-                f.write(lmm(df_rt))
+                print("================================================")
+                print(f"figures/{folder}/{filter_fn}.{value_fn}/_{type_}_summary.txt")
+                f.write(f" OBSERVATIONS -----------------------------------\n")
+
+                f.write(f"Greedy Value vs Choice Left Regression Analysis GLMM\n")
+                f.write(glmm(df_value))
 
                 f.write(f"Stochasticity vs Reward Regression Analysis LMM\n")
                 f.write(lmm(df_reward))
 
-                f.write(f"Greedy Value vs Choice LeftRegression Analysis GLMM\n")
-                f.write(glmm(df_value))
+                f.write(f"Stochasticity vs Reaction Time Regression Analysis\n")
+                f.write(lmm(df_rt))
 
-                f.write(f"-----------------------------------\n")
+                f.write(f" MODEL PREDICTIONS -----------------------------------\n")
 
                 f.write(f"[Model] Stochasticity vs Depth Regression Analysis\n")
                 f.write(lmm(df_depth))
 
-                f.write(f"[Model] Stochasticity vs Reward Regression Analysis LMM\n")
-                f.write(lmm(df_reward_sim))
+                print("================================================")
 
-                f.write(f"[Model] Greedy Value vs Choice LeftRegression Analysis GLMM\n")
-                f.write(glmm(df_value_sim))
+                # f.write(f"[Model] Stochasticity vs Reward Regression Analysis LMM\n")
+                # f.write(lmm(df_reward_sim))
+
+                # f.write(f"[Model] Greedy Value vs Choice LeftRegression Analysis GLMM\n")
+                # f.write(glmm(df_value_sim))
 
 
