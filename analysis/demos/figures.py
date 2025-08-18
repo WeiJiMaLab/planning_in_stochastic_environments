@@ -12,7 +12,7 @@ from utils import colormaps
 folder = "final_fit"
 
 for filter_fn in ["filter_depth"]:
-    for value_fn in ["value_path", "value_sum", "value_max"]:
+    for value_fn in ["value_path"]: #["value_path", "value_sum", "value_max"]:
         for type_ in ["R", "V", "T"]:
             os.makedirs(f"figures/{folder}/{filter_fn}.{value_fn}", exist_ok=True)
             colormap_ = {"R": colormaps["arctic"], "T": colormaps["berry"], "V": colormaps["grass"]}
@@ -99,13 +99,4 @@ for filter_fn in ["filter_depth"]:
 
                 f.write(f"[Model] Stochasticity vs Depth Regression Analysis\n")
                 f.write(lmm(df_depth))
-
-                print("================================================")
-
-                # f.write(f"[Model] Stochasticity vs Reward Regression Analysis LMM\n")
-                # f.write(lmm(df_reward_sim))
-
-                # f.write(f"[Model] Greedy Value vs Choice LeftRegression Analysis GLMM\n")
-                # f.write(glmm(df_value_sim))
-
 

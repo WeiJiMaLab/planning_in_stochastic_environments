@@ -8,7 +8,6 @@ def softmax(d, b_0 = 0, b_1 = 1):
     e_x = np.exp(-(b_0 + b_1 * d))
     return e_x / e_x.sum()
 
-@jit(nopython=True)
 def sigmoid(d, b_0 = 0, b_1 = 1, norm = None): 
     return 1/(1 + np.exp(-(b_0 + b_1 * d)))
 

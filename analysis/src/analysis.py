@@ -7,70 +7,96 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 from matplotlib.colors import Normalize
-from pymer4.models import Lmer
+from pymer4.models import lmer, glmer
 from scipy.stats import chi2
 from utils import report_p_value
+import polars as pl 
 
 
-def lmm(df, random_slopes = True): 
-    # combined = xr.Dataset({"y": y})
-    # df = combined.stack(flat_dim=list(y.coords)).to_dataframe().reset_index(drop = True)
+def get_results(model):
+    model.fit()
+    if not "[1] TRUE" in model.convergence_status: 
+        return None, None, "Model failed to converge"
+    elif "singular" in " ".join(model.r_console).lower(): 
+        return None, None, "Singular fit detected"
+    elif "warning" in " ".join(model.r_console).lower(): 
+        return None, None, "Convergence warnings"
+    elif not model.fitted: 
+        return None, None, "Model not properly fitted"
+    result = model.result_fit.to_pandas().set_index("term").transpose()
+    loglik = model.result_fit_stats.to_pandas()["logLik"].iloc[0]
+    return result, loglik, "Converged Properly"
 
-    if random_slopes: 
-        model = Lmer("y ~ conditions + (1 + conditions|participants)", data=df)
-        model_str = "y ~ conditions + (1 + conditions|participants)"
-    else: 
-        model = Lmer("y ~ conditions + (1|participants)", data=df)
-        model_str = "y ~ conditions + (1|participants)"
 
-    result = model.fit()
+def lmm(df):
+    df = pl.from_pandas(df)
+    error_log = ""
+    for formula, label in [ 
+        ("y ~ conditions + (1 + conditions|participants)", "FULL"), 
+        ("y ~ conditions + (1 + conditions||participants)", "Uncorrelated Slopes"), 
+        ("y ~ conditions + (1|participants)", "Intercept-only")]:
 
-    beta = model.coefs.loc['conditions', 'Estimate']
-    t_val = model.coefs.loc['conditions', 'T-stat']
-    dof = model.coefs.loc['conditions', 'DF']
-    p_val = model.coefs.loc['conditions', 'P-val']
-    return f"Model: {model_str}\n$\\beta = {beta:.2f}$, $t_{{{int(round(dof))}}} = {t_val:.2f}$, ${report_p_value(p_val)}$\n"
+        model = lmer(formula, data = df)
+        result, _, message = get_results(model)
+        error_log += f"{formula}: {message}\n"
+        if result is not None: 
+            estimate = result["conditions"]["estimate"]
+            tstat = result["conditions"]["t_stat"]
+            dof = result["conditions"]["df"]
+            pval = result["conditions"]["p_value"]
+            return f"{error_log}\n\t{label}: $LMM, \\beta = {estimate:.2f}$, $t_{{{int(round(dof))}}} = {tstat:.1f}$, ${report_p_value(pval)}$\n"
 
-def glmm(df, random_slopes = True):
-    # Full model with interaction
-    if random_slopes: 
-        full = Lmer("y ~ x * conditions + (1 + x + conditions|participants)", data=df, family="binomial")
-        no_interaction = Lmer("y ~ x + conditions + (1 + x + conditions|participants)", data=df, family="binomial")
-        no_x = Lmer("y ~ conditions + (1 + conditions|participants)", data=df, family="binomial")
-        model_str = "y ~ x * conditions + (1 + x + conditions|participants)"
+    raise RuntimeError(message)
 
-    else: 
-        full = Lmer("y ~ x * conditions + (1|participants)", data=df, family="binomial")
-        no_interaction = Lmer("y ~ x + conditions + (1|participants)", data=df, family="binomial")
-        no_x = Lmer("y ~ conditions + (1|participants)", data=df, family="binomial")
-        model_str = "y ~ x * conditions + (1|participants)"
 
-    full_res = full.fit(verbose=True)
+def glmm(df): 
+    df = pl.from_pandas(df)
+    for full, no_interaction, no_main, label in [ 
+        (
+            "y ~ x * conditions + (1 + x + conditions|participants)", 
+            "y ~ x + conditions + (1 + x + conditions|participants)", 
+            "y ~ conditions + (1 + conditions|participants)", 
+            "FULL"
+        ), 
+        (
+            "y ~ x * conditions + (1 + x + conditions||participants)", 
+            "y ~ x + conditions + (1 + x + conditions||participants)", 
+            "y ~ conditions + (1 + conditions||participants)", 
+            "Uncorrelated Slopes"
+        ), 
+        (
+            "y ~ x * conditions + (1|participants)", 
+            "y ~ x + conditions + (1|participants)", 
+            "y ~ conditions + (1|participants)", 
+            "Intercept-only") 
+        ]: 
 
-    # Reduced model without interaction (testing interaction)
-    no_interaction_res = no_interaction.fit()
+        full_model = glmer(full, data = df, family = "binomial")
+        no_interaction_model = glmer(no_interaction, data = df, family = "binomial")
+        no_main_model = glmer(no_main, data = df, family = "binomial")
 
-    # Reduced model without x (testing main effect of x)
-    no_x_res = no_x.fit()
+        full_result, full_loglik, full_message = get_results(full_model)
+        no_interaction_result, no_interaction_loglik, no_interaction_message = get_results(no_interaction_model)
+        no_main_result, no_main_loglik, no_main_message = get_results(no_main_model)
 
-    # Interaction test
-    chi2_inter = 2 * (full.logLike - no_interaction.logLike)
-    dof_inter = full.coefs.shape[0] - no_interaction.coefs.shape[0]
-    pval_inter = chi2.sf(chi2_inter, dof_inter)
+        if full_result is not None and no_interaction_result is not None and no_main_result is not None: 
+            chi2_inter = 2 * (full_loglik - no_interaction_loglik)
+            pval_inter = chi2.sf(chi2_inter, 1)
 
-    # Main effect test
-    chi2_x = 2 * (no_interaction.logLike - no_x.logLike)
-    dof_x = no_interaction.coefs.shape[0] - no_x.coefs.shape[0]
-    pval_x = chi2.sf(chi2_x, dof_x)
+            chi2_main = 2 * (no_interaction_loglik - no_main_loglik)
+            pval_main = chi2.sf(chi2_main, 1)
 
-    beta_x = no_interaction_res.loc['x', 'Estimate']
-    beta_int = full_res.loc['x:conditions', 'Estimate']
+            beta_int = full_result["x:conditions"]["estimate"]
+            beta_main = no_interaction_result["x"]["estimate"]
 
-    return (
-        f"Model: {model_str}\n"
-        f"Main effect of x: $\\beta = {beta_x:.3f}$, $\\chi^2({dof_x}) = {chi2_x:.1f}$, ${report_p_value(pval_x)}$\n"
-        f"Interaction effect: interaction $\\beta = {beta_int:.3f}$, $\\chi^2({dof_inter}) = {chi2_inter:.1f}$, ${report_p_value(pval_inter)}$\n"
-    )
+            return (
+                f"\tModel: {label} ({full})\n"
+                f"\tGLMM, $\\beta = {beta_main:.3f}$, $\\chi^2(1) = {chi2_main:.1f}$, ${report_p_value(pval_main)}$\n"
+                f"\tGLMM, interaction $\\beta = {beta_int:.3f}$, $\\chi^2(1) = {chi2_inter:.1f}$, ${report_p_value(pval_inter)}$\n"
+            )
+    raise RuntimeError(full_message, no_interaction_message, no_main_message)
+
+
 
 def bootstrap(x, n = 1e4): 
     n_samps = len(x)
@@ -143,7 +169,9 @@ class Analyzer():
 
         self.reaction_time_data = pd.DataFrame(reaction_time_data)
 
-    def plot_model_comparison(self, n_bootstrap = 1e6, verbose = False, kind = "nll", format = "bar"): 
+    def plot_model_comparison(self, n_bootstrap = 1e6, verbose = False, kind = "nll", format = "bar", ax=None): 
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
         print("N bootstrap", n_bootstrap)
         
         def transform_name(name): 
@@ -208,76 +236,72 @@ class Analyzer():
         sig_star_positions = [sig_star_positions[i] for i in range(len(plot.sig)) if plot.sig[i]]
 
         plt.figure(figsize = (5, len(plot.name) * 0.5))
-        if format == "violin": 
-            plt.subplot(1, 1, 1)
+        if format == "violin":
             color = self.colors(0.5)
-            violin = plt.violinplot(np.array(plot.dist).T, 
-                           showmeans=False, 
+            violin = ax.violinplot(np.array(plot.dist).T,
+                           showmeans=False,
                            showextrema = False,
-                           vert = False, 
-                           widths = 0.8, 
+                           vert = False,
+                           widths = 0.8,
                            quantiles = [[0.025, 0.975]] * len(plot.name)
                           )
-            
+
             for part in violin['bodies']:
                 part.set_facecolor(color)
                 part.set_alpha(0.4)
-            
+
             for partname in (['cquantiles']):
                 vp = violin[partname]
                 vp.set_edgecolor(color)
                 vp.set_linewidth(1.5)
-            
-            plt.gca().set_yticks([y + 1 for y in range(len(plot.name))],
+
+            ax.set_yticks([y + 1 for y in range(len(plot.name))],
                   labels= plot.name)
-            plt.ylim([0.2, len(plot.name) + 0.5])
-            plt.vlines(0, -1, len(plot.name) + 1, colors=self.colors(0.5), alpha=0.3, linestyle='dotted')
-            plt.gca().grid(c = [0.95, 0.95, 0.95], axis = 'y', linewidth = 1)
-            gca = plt.gca()
-            gca.spines[['top', 'right']].set_visible(False)
-            gca.spines[['left', 'bottom']].set_linewidth(1.5)
-            gca.set_axisbelow(True)
-            gca.xaxis.set_tick_params(width=1.5, length = 10)
-            gca.yaxis.set_tick_params(width=1.5, length = 10)
-            gca.set_xlabel(f"Model {kind.upper()} - {transform_name(self.baseline_name)} {kind.upper()}\n($\leftarrow$ better fit)")
+            ax.set_ylim([0.2, len(plot.name) + 0.5])
+            ax.vlines(0, -1, len(plot.name) + 1, colors=self.colors(0.5), alpha=0.3, linestyle='dotted')
+            ax.grid(c = [0.95, 0.95, 0.95], axis = 'y', linewidth = 1)
+            ax.spines[['top', 'right']].set_visible(False)
+            ax.spines[['left', 'bottom']].set_linewidth(1.5)
+            ax.set_axisbelow(True)
+            ax.xaxis.set_tick_params(width=1.5, length = 10)
+            ax.yaxis.set_tick_params(width=1.5, length = 10)
+            ax.set_xlabel(f"Model {kind.upper()} - {transform_name(self.baseline_name)} {kind.upper()}\n($\leftarrow$ better fit)")
 
-        else: 
-            fig = plt.subplot(1, 1, 1)
-            plt.barh(plot.name, plot.mean, align='center', color = "#a4c4eb", alpha=1)
-            plt.errorbar(plot.mean, plot.name, xerr = np.abs(np.array(plot.conf)).T, ecolor = self.colors(0.5), fmt = "none", capsize = 3, elinewidth=2, markeredgewidth=2)
+        else:
+            ax.barh(plot.name, plot.mean, align='center', color = "#a4c4eb", alpha=1)
+            ax.errorbar(plot.mean, plot.name, xerr = np.abs(np.array(plot.conf)).T, ecolor = self.colors(0.5), fmt = "none", capsize = 3, elinewidth=2, markeredgewidth=2)
             # plt.scatter(sig_star_positions, sig_names, s = 100, color = 'k', marker = "*")
+
+            ax.spines[['top', 'right']].set_visible(False)
+            ax.spines[['left', 'bottom']].set_linewidth(1.5)
+            ax.set_axisbelow(True)
+            ax.xaxis.set_tick_params(width=1.5, length = 10)
+            ax.yaxis.set_tick_params(width=1.5, length = 10)
+
+    def plot_stochasticity_vs_depth(self, ax=None): 
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
             
-            gca = plt.gca()
-            gca.spines[['top', 'right']].set_visible(False)
-            gca.spines[['left', 'bottom']].set_linewidth(1.5)
-            gca.set_axisbelow(True)
-            gca.xaxis.set_tick_params(width=1.5, length = 10)
-            gca.yaxis.set_tick_params(width=1.5, length = 10)
-
-
-    def plot_stochasticity_vs_depth(self): 
         baseline = self.baseline
         
-        fig, ax = plt.subplots(1, 1, figsize = (4, 4))
         mean = np.mean(baseline[self.conditions].values, axis = 0)
         std = np.std(baseline[self.conditions].values, axis = 0, ddof = 1)/np.sqrt(len(baseline))
-        plt.errorbar(np.array(self.conditions) * 100, mean, std, capsize = 3, elinewidth=2, markeredgewidth=2, linewidth=2, color = self.colors(0.5))
-        plt.xlabel("Stochasticity Level (%)\n")
-        plt.ylabel("Planning Depth")
-        plt.xticks(np.array(self.conditions) * 100);
+        ax.errorbar(np.array(self.conditions) * 100, mean, std, capsize = 3, elinewidth=2, markeredgewidth=2, linewidth=2, color = self.colors(0.5))
+        ax.set_xlabel("Stochasticity Level (%)\n")
+        ax.set_ylabel("Planning Depth")
+        ax.set_xticks(np.array(self.conditions) * 100)
             
         df = pd.melt(baseline, "player", value_vars = self.conditions)
 
         df["condition"] = df["variable"].astype(float)
         df["depth"] = df["value"]
         
-        gca = plt.gca()
-        gca.spines[['top', 'right']].set_visible(False)
-        gca.spines[['left', 'bottom']].set_linewidth(1.5)
-        gca.set_axisbelow(True)
-        gca.xaxis.set_tick_params(width=1.5, length = 10)
-        gca.yaxis.set_tick_params(width=1.5, length = 10)
-        gca.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
+        ax.spines[['top', 'right']].set_visible(False)
+        ax.spines[['left', 'bottom']].set_linewidth(1.5)
+        ax.set_axisbelow(True)
+        ax.xaxis.set_tick_params(width=1.5, length = 10)
+        ax.yaxis.set_tick_params(width=1.5, length = 10)
+        ax.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
 
         out_df = df.copy()
         out_df = out_df.rename(columns = {"condition": "conditions", "depth": "y", "player": "participants"})
@@ -285,90 +309,62 @@ class Analyzer():
         # plt.savefig(f"figures/{self.variant}_stochasticity_vs_depth.svg", bbox_inches='tight')
         return out_df[["participants", "conditions", "y"]]
 
-    def plot_stochasticity_vs_rt(self, yspace = np.linspace(0.8, 1.8, 6)): 
+    def plot_stochasticity_vs_rt(self, yspace = np.linspace(0.8, 1.8, 6), ax=None): 
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
 
         self.reaction_time_data["x"] = self.reaction_time_data["condition"]
         self.reaction_time_data["y"] = self.reaction_time_data["log_first_rt"]
         group = self.reaction_time_data.groupby(["player", "condition"])
         mean_x, mean_rt, sem_rt = heirarchical_means(group)
 
-        fig, ax = plt.subplots(1, 1, figsize = (4, 4))
-        plt.errorbar(mean_x * 100, mean_rt, sem_rt, capsize = 3, elinewidth=2, markeredgewidth=2, linewidth=2, color = self.colors(0.5))
-        plt.xticks(mean_x * 100)
-        plt.xlabel("Stochasticity Level (%)\n")
-        plt.ylabel("First Choice RT (s)")
+        ax.errorbar(mean_x * 100, mean_rt, sem_rt, capsize = 3, elinewidth=2, markeredgewidth=2, linewidth=2, color = self.colors(0.5))
+        ax.set_xticks(mean_x * 100)
+        ax.set_xlabel("Stochasticity Level (%)\n")
+        ax.set_ylabel("First Choice RT (s)")
 
-        plt.yticks(np.log(yspace))
+        ax.set_yticks(np.log(yspace))
         ax.set_yticklabels(np.round(yspace, 2))
 
-        gca = plt.gca()
-        gca.spines[['top', 'right']].set_visible(False)
-        gca.spines[['left', 'bottom']].set_linewidth(1.5)
-        gca.set_axisbelow(True)
-        gca.xaxis.set_tick_params(width=1.5, length = 10)
-        gca.yaxis.set_tick_params(width=1.5, length = 10)
-        gca.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
+        ax.spines[['top', 'right']].set_visible(False)
+        ax.spines[['left', 'bottom']].set_linewidth(1.5)
+        ax.set_axisbelow(True)
+        ax.xaxis.set_tick_params(width=1.5, length = 10)
+        ax.yaxis.set_tick_params(width=1.5, length = 10)
+        ax.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
 
         out_df = self.reaction_time_data.copy()
-        out_df = out_df.rename(columns = {"condition": "conditions", "log_first_rt": "y", "player": "participants"})
+        out_df = out_df.rename(columns = {"condition": "conditions", "player": "participants"})
         return out_df[["participants", "conditions", "y"]]
 
-    def plot_depth_vs_rt(self, yspace = np.linspace(0.8, 1.8, 6)):
-        # print("hello")
-        fig, ax = plt.subplots(1, 1, figsize = (4, 4))
-        plt.scatter(self.reaction_time_data["depth"], self.reaction_time_data["log_first_rt"], alpha = 0.005, s = 30, color = self.colors(0.5))
-        plt.axis("square")
-        plt.xlabel("Planning Depth")
-        plt.ylabel("Log First-choice RT")
-        plt.xlim(-1, 8)
-        gca = plt.gca()
-        gca.spines[['top', 'right']].set_visible(False)
-        gca.spines[['left', 'bottom']].set_linewidth(1.5)
-        gca.set_axisbelow(True)
-        gca.xaxis.set_tick_params(width=1.5, length = 10)
-        gca.yaxis.set_tick_params(width=1.5, length = 10)
-        gca.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
-        # plt.savefig(f"figures/{self.variant}_depth_vs_rt.svg", bbox_inches='tight')
+    def plot_depth_vs_rt(self, yspace = np.linspace(0.8, 1.8, 6), ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
+            
+        ax.scatter(self.reaction_time_data["depth"], self.reaction_time_data["log_first_rt"], alpha = 0.005, s = 30, color = self.colors(0.5))
+        ax.axis("square")
+        ax.set_xlabel("Planning Depth")
+        ax.set_ylabel("Log First-choice RT")
+        ax.set_xlim(-1, 8)
+        
+        ax.spines[['top', 'right']].set_visible(False)
+        ax.spines[['left', 'bottom']].set_linewidth(1.5)
+        ax.set_axisbelow(True)
+        ax.xaxis.set_tick_params(width=1.5, length = 10)
+        ax.yaxis.set_tick_params(width=1.5, length = 10)
+        ax.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
 
         md = smf.mixedlm("log_first_rt ~ depth", self.reaction_time_data, groups = self.reaction_time_data["player"])
         mdf = md.fit()
-        # print("Group Std", np.sqrt(mdf.cov_re.values[0]))
         return mdf
 
-    # def plot_trial_vs_rt(self, yspace = np.linspace(0.8, 1.8, 6)): 
-    #     x, y = empirical(
-    #         data = self.data,
-    #         x_fun = trialwise_trialnumber, 
-    #         y_fun = trialwise_reactiontime
-    #     )
-
-    #     plt.figure(figsize = (4, 4))
-
-    #     emp_x, emp_y, emp_sem = summary_statistics(x, y, n_bins = None)
-    #     num_keys = len(emp_x.keys())
-    #     for i, k in enumerate(emp_x.keys()): 
-    #         # Get color from colormap based on index
-    #         color = self.colors(i / (num_keys - 1)) if num_keys > 1 else self.colors(0.5)
-    #         plt.errorbar(emp_x[k], emp_y[k], yerr = emp_sem[k], elinewidth=2, markeredgewidth=2, linewidth = 3, capsize = 3, color = color)
-        
-    #     plt.xlabel("Trial")
-    #     plt.ylabel("Log First-choice RT")
-
-    #     gca = plt.gca()
-    #     gca.spines[['top', 'right']].set_visible(False)
-    #     gca.spines[['left', 'bottom']].set_linewidth(1.5)
-    #     gca.set_axisbelow(True)
-    #     gca.xaxis.set_tick_params(width=1.5, length = 10)
-    #     gca.yaxis.set_tick_params(width=1.5, length = 10)
-    #     gca.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
-        
-    #     # plt.savefig(f"figures/{self.variant}_trialvsrt.svg", bbox_inches='tight')
-
-    def plot_checking_condition(self, y_fun, show_model = True): 
+    def plot_checking_condition(self, y_fun, show_model = True, ax=None): 
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
+            
         sim_x, sim_y = None, None
 
         model, fit_params = self.model_fits[self.baseline_name]
-        plt.figure(figsize = (4, 4))
         
         if show_model:
             _, sim_y = simulate_model(data = self.data, 
@@ -381,7 +377,7 @@ class Analyzer():
             sim_x, participants = (xr.ones_like(sim_y) * sim_y.conditions), (xr.ones_like(sim_y) * sim_y.participants)
             model_x, model_y, model_sem = aggregate_data(participants.values.flatten(), sim_x.values.flatten(), sim_y.values.flatten())
 
-            plt.fill_between(model_x * 100, model_y - model_sem, model_y + model_sem, alpha = 0.5, color = self.colors(0.5))
+            ax.fill_between(model_x * 100, model_y - model_sem, model_y + model_sem, alpha = 0.5, color = self.colors(0.5))
 
         _, y = empirical(
             data = self.data,
@@ -391,28 +387,27 @@ class Analyzer():
         x, participants = (xr.ones_like(y) * y.conditions), (xr.ones_like(y) * y.participants)
         emp_x, emp_y, emp_sem = aggregate_data(participants.values.flatten(), x.values.flatten(), y.values.flatten())
 
-        plt.errorbar(emp_x * 100 , emp_y, yerr=emp_sem, elinewidth=2, markeredgewidth=2, capsize = 3, linestyle='None', color=self.colors(0.5))
-        if not show_model: plt.plot(emp_x * 100, emp_y, color=self.colors(0.5), linestyle='-', linewidth=2)  # Connect error bars with a line
+        ax.errorbar(emp_x * 100 , emp_y, yerr=emp_sem, elinewidth=2, markeredgewidth=2, capsize = 3, linestyle='None', color=self.colors(0.5))
+        if not show_model: ax.plot(emp_x * 100, emp_y, color=self.colors(0.5), linestyle='-', linewidth=2)  # Connect error bars with a line
 
-        gca = plt.gca()
-        gca.spines[['top', 'right']].set_visible(False)
-        gca.spines[['left', 'bottom']].set_linewidth(1.5)
-        gca.set_axisbelow(True)
-        gca.xaxis.set_tick_params(width=1.5, length = 10)
-        gca.yaxis.set_tick_params(width=1.5, length = 10)
-        gca.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
+        ax.spines[['top', 'right']].set_visible(False)
+        ax.spines[['left', 'bottom']].set_linewidth(1.5)
+        ax.set_axisbelow(True)
+        ax.xaxis.set_tick_params(width=1.5, length = 10)
+        ax.yaxis.set_tick_params(width=1.5, length = 10)
+        ax.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
 
         if show_model:
             df = y.to_dataframe(name="y").reset_index()
             df_sim = sim_y.to_dataframe(name="y").reset_index()
             return df, df_sim
-        
 
-    def plot_checking(self, x_fun, y_fun, n_bins = None, show_model = True): 
+    def plot_checking(self, x_fun, y_fun, n_bins = None, show_model = True, ax=None): 
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
+            
         sim_x, sim_y = None, None
         model, fit_params = self.model_fits[self.baseline_name]
-
-        plt.figure(figsize = (4, 4))
 
         if show_model:
             sim_x, sim_y = simulate_model(data = self.data, 
@@ -427,7 +422,7 @@ class Analyzer():
             for i, k in enumerate(model_x.keys()): 
                 # Get color from colormap based on index
                 color = self.colors(i / (num_model_keys - 1)) if num_model_keys > 1 else self.colors(0.5)
-                plt.fill_between(model_x[k], model_y[k] - model_sem[k], model_y[k] + model_sem[k], alpha = 0.5, color = color)
+                ax.fill_between(model_x[k], model_y[k] - model_sem[k], model_y[k] + model_sem[k], alpha = 0.5, color = color)
 
         x, y = empirical(
             data = self.data,
@@ -443,26 +438,23 @@ class Analyzer():
         for i, k in enumerate(emp_x.keys()): 
             # Get color from colormap based on index
             color = self.colors(i / (num_emp_keys - 1)) if num_emp_keys > 1 else self.colors(0.5)
-            plt.errorbar(emp_x[k], emp_y[k], yerr = emp_sem[k], elinewidth=2, markeredgewidth=2, capsize = 3, linestyle = 'None', label = k, color = color)
-            if not show_model: plt.plot(emp_x[k], emp_y[k], color=color, linestyle='-', linewidth=2)  # Connect error bars with a line
+            ax.errorbar(emp_x[k], emp_y[k], yerr = emp_sem[k], elinewidth=2, markeredgewidth=2, capsize = 3, linestyle = 'None', label = k, color = color)
+            if not show_model: ax.plot(emp_x[k], emp_y[k], color=color, linestyle='-', linewidth=2)  # Connect error bars with a line
             colorlegend[f"{strsimplify(k * 100)}%"] = color
 
         # After plotting, manually create a patch-based legend
         patches = [mpatches.Patch(color=color, label=label) for label, color in colorlegend.items()]
 
-        plt.legend(handles=patches, loc='lower right', frameon=False, fontsize=13, title="$q$", title_fontsize = 13)
+        ax.legend(handles=patches, loc='lower right', frameon=False, fontsize=13, title="$q$", title_fontsize = 13)
 
-        gca = plt.gca()
-        gca.spines[['top', 'right']].set_visible(False)
-        gca.spines[['left', 'bottom']].set_linewidth(1.5)
-        gca.set_axisbelow(True)
-        gca.xaxis.set_tick_params(width=1.5, length = 10)
-        gca.yaxis.set_tick_params(width=1.5, length = 10)
-        gca.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
+        ax.spines[['top', 'right']].set_visible(False)
+        ax.spines[['left', 'bottom']].set_linewidth(1.5)
+        ax.set_axisbelow(True)
+        ax.xaxis.set_tick_params(width=1.5, length = 10)
+        ax.yaxis.set_tick_params(width=1.5, length = 10)
+        ax.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
 
         if show_model:
             df = pd.concat([x.to_dataframe(name="x"), y.to_dataframe(name="y")], axis=1).reset_index()
             df_sim = pd.concat([sim_x.to_dataframe(name="x"), sim_y.to_dataframe(name="y")], axis=1).reset_index()
             return df, df_sim
-                
-
