@@ -2,7 +2,6 @@ import numpy as np
 import json
 import copy
 
-
 MAXDEPTH = 8
 MAXVAL = 10
 

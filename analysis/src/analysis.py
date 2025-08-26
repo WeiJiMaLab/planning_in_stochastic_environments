@@ -44,10 +44,15 @@ def lmm(df):
             tstat = result["conditions"]["t_stat"]
             dof = result["conditions"]["df"]
             pval = result["conditions"]["p_value"]
-            return f"{error_log}\n\t{label}: $LMM, \\beta = {estimate:.2f}$, $t_{{{int(round(dof))}}} = {tstat:.1f}$, ${report_p_value(pval)}$\n"
+            return {
+                "modeltype": label, 
+                "beta": estimate, 
+                "tstat": tstat, 
+                "dof": dof, 
+                "pval": pval
+            }, error_log
 
     raise RuntimeError(message)
-
 
 def glmm(df): 
     df = pl.from_pandas(df)
@@ -70,6 +75,7 @@ def glmm(df):
             "y ~ conditions + (1|participants)", 
             "Intercept-only") 
         ]: 
+        error_log = ""
 
         full_model = glmer(full, data = df, family = "binomial")
         no_interaction_model = glmer(no_interaction, data = df, family = "binomial")
@@ -79,21 +85,28 @@ def glmm(df):
         no_interaction_result, no_interaction_loglik, no_interaction_message = get_results(no_interaction_model)
         no_main_result, no_main_loglik, no_main_message = get_results(no_main_model)
 
-        if full_result is not None and no_interaction_result is not None and no_main_result is not None: 
+        if full_result is not None and no_interaction_result is not None and no_main_result is not None:
+            error_log += f"{full}: {full_message}\n{no_interaction}: {no_interaction_message}\n{no_main}: {no_main_message}\n" 
             chi2_inter = 2 * (full_loglik - no_interaction_loglik)
             pval_inter = chi2.sf(chi2_inter, 1)
 
             chi2_main = 2 * (no_interaction_loglik - no_main_loglik)
             pval_main = chi2.sf(chi2_main, 1)
 
-            beta_int = full_result["x:conditions"]["estimate"]
+            beta_inter = full_result["x:conditions"]["estimate"]
             beta_main = no_interaction_result["x"]["estimate"]
 
-            return (
-                f"\tModel: {label} ({full})\n"
-                f"\tGLMM, $\\beta = {beta_main:.3f}$, $\\chi^2(1) = {chi2_main:.1f}$, ${report_p_value(pval_main)}$\n"
-                f"\tGLMM, interaction $\\beta = {beta_int:.3f}$, $\\chi^2(1) = {chi2_inter:.1f}$, ${report_p_value(pval_inter)}$\n"
-            )
+            result = {
+                "modeltype": label, 
+                "beta_main": beta_main, 
+                "chi2_main": chi2_main, 
+                "pval_main": pval_main, 
+                "beta_inter": beta_inter, 
+                "chi2_inter": chi2_inter, 
+                "pval_inter": pval_inter
+            }
+            
+            return result, error_log
     raise RuntimeError(full_message, no_interaction_message, no_main_message)
 
 
@@ -163,6 +176,7 @@ class Analyzer():
                     "player": player, 
                     "game": game["name"],
                     "log_first_rt": np.log(np.array([trial["rt"] for trial in game["trials"]])[0]/ 1000),
+                    "log_total_rt": np.log((np.array([trial["rt"] for trial in game["trials"]])/ 1000).sum()),
                     "condition": game["p"],
                     "depth": depths[player][game["p"]]
                 }))
@@ -309,19 +323,22 @@ class Analyzer():
         # plt.savefig(f"figures/{self.variant}_stochasticity_vs_depth.svg", bbox_inches='tight')
         return out_df[["participants", "conditions", "y"]]
 
-    def plot_stochasticity_vs_rt(self, yspace = np.linspace(0.8, 1.8, 6), ax=None): 
+    def plot_stochasticity_vs_rt(self, yspace = np.linspace(0.8, 1.8, 6), ax=None, first_rt = True): 
         if ax is None:
             fig, ax = plt.subplots(1, 1)
 
         self.reaction_time_data["x"] = self.reaction_time_data["condition"]
-        self.reaction_time_data["y"] = self.reaction_time_data["log_first_rt"]
+        if first_rt:
+            self.reaction_time_data["y"] = self.reaction_time_data["log_first_rt"]
+        else:
+            self.reaction_time_data["y"] = self.reaction_time_data["log_total_rt"]
         group = self.reaction_time_data.groupby(["player", "condition"])
         mean_x, mean_rt, sem_rt = heirarchical_means(group)
 
         ax.errorbar(mean_x * 100, mean_rt, sem_rt, capsize = 3, elinewidth=2, markeredgewidth=2, linewidth=2, color = self.colors(0.5))
         ax.set_xticks(mean_x * 100)
         ax.set_xlabel("Stochasticity Level (%)\n")
-        ax.set_ylabel("First Choice RT (s)")
+        ax.set_ylabel("First Choice RT (s)" if first_rt else "Total RT (s)")
 
         ax.set_yticks(np.log(yspace))
         ax.set_yticklabels(np.round(yspace, 2))

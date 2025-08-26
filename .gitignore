@@ -8,8 +8,6 @@ firebase-debug.*.log
 firebase.json
 firebase-debug.log.*
 
-*.sh
-
 *.DS_Store
 
 # Data and other experimental results

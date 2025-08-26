@@ -34,8 +34,7 @@ player = list(data.keys())[jobid]
 
 # multi-start parameters
 params = {
-"inv_temp": 5,
-# 0:5, 
+"inv_temp": 5, 
 }
 
 # params.update({p:5 for p in get_conditions(type_)})

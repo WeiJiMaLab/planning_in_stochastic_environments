@@ -1,23 +1,33 @@
 import matplotlib.pyplot as plt
 import matplotlib
-import os, sys, inspect
-font_path = os.path.join(os.getcwd(), 'fonts/Helvetica Neue.ttf')
-matplotlib.font_manager.fontManager.addfont(font_path)
-prop = matplotlib.font_manager.FontProperties(fname=font_path)
-import matplotlib.colors as colors
-from skimage.color import rgb2lab, lab2rgb
+import os
 import numpy as np
+from skimage.color import rgb2lab, lab2rgb
+import matplotlib.colors as colors
 
-plt.style.use('default')
-matplotlib.rcParams.update({
-    'font.family': 'sans-serif',
-    'font.sans-serif': prop.get_name(),
-    'font.size': 20
-})
-plt.rcParams['svg.fonttype'] = 'none'
+# Load Helvetica font files
+font_regular_path = os.path.join(os.getcwd(), 'fonts/HelveticaNeue-Roman.otf')
+matplotlib.font_manager.fontManager.addfont(font_regular_path)
+helvetica_regular = matplotlib.font_manager.FontProperties(fname=font_regular_path)
+
+font_bold_path = os.path.join(os.getcwd(), 'fonts/HelveticaNeue-Bold.otf')
+matplotlib.font_manager.fontManager.addfont(font_bold_path)
+helvetica_bold = matplotlib.font_manager.FontProperties(fname=font_bold_path)
+
+def set_helvetica_style():
+    """Set Matplotlib default style with Helvetica font."""
+    plt.style.use('default')
+    matplotlib.rcParams.update({
+        'font.family': helvetica_regular.get_name(),
+        'font.size': 20
+    })
+    plt.rcParams['svg.fonttype'] = 'none'
+
+    # Return both regular and bold FontProperties for convenience
+    return helvetica_regular, helvetica_bold
 
 colors = ['#D76F6E', '#9FD5D9', '#5498AE','#1E5A80', '#002E59', '#0B003D']
-
+set_helvetica_style()
 
 def make_gradient(hex_codes, steps = 10):
     # Convert hex codes to RGB values

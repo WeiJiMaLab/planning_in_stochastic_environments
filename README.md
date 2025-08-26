@@ -29,7 +29,8 @@ This repository contains code for an experiment that studies human planning in s
 │       │   └── utils.js        
 │       └── index.html          # Main experiment page
 ├── resources/                  # Additional resources
-├── requirements.txt            # Python dependencies
+├── requirements.txt            # Python dependencies (pip fallback)
+├── environment.yml             # Conda environment configuration
 └── README.md                 
 ```
 
@@ -96,6 +97,89 @@ Code for generating camera-ready figures:
 - Stochasticity vs. reaction time analysis
 - Choice pattern analysis
 - Reward analysis
+
+## Setup and Installation
+
+### Option 1: Using Conda Environment (Strongly Recommended)
+
+This repository uses a conda environment for dependency management. This is the **strongly recommended** approach for several reasons:
+
+1. **Better Package Compatibility**: Conda handles complex dependencies better than pip, especially for scientific packages
+2. **R Integration**: Packages like `pymer4` and `rpy2` require R and have complex system dependencies that conda manages automatically
+3. **Binary Packages**: Conda provides pre-compiled binaries for many packages, avoiding compilation issues
+4. **Environment Isolation**: Conda environments are more robust and easier to reproduce across different systems
+5. **System Dependencies**: Conda automatically installs required system libraries and tools
+
+**Note:** The previous virtual environment (`.venv`) has been removed as it was causing compatibility issues with key packages.
+
+**Current Setup:** The repository is configured to work with the `base` conda environment, which includes all necessary packages. The previous virtual environment (`.venv`) has been removed as conda provides better dependency management. If you prefer to use a dedicated environment, you can create one using the provided `environment.yml` file.
+
+#### Quick Start (Base Environment)
+If you're using the base conda environment (as currently configured):
+```bash
+# Simply activate your base environment
+conda activate base
+
+# Verify packages are available
+python -c "import numpy, pandas, matplotlib, pymc; print('Base environment ready!')"
+```
+
+#### Dedicated Environment
+1. **Create and activate the conda environment:**
+```bash
+# Create the environment from the environment.yml file
+conda env create -f environment.yml
+
+# Activate the environment
+conda activate planning_stochastic
+```
+
+2. **Verify the environment is working:**
+```bash
+# Check that key packages are available
+python -c "import numpy, pandas, matplotlib, pymc; print('Environment setup successful!')"
+```
+
+### Option 2: Using pip (Not Recommended)
+
+**Warning:** The pip approach is not recommended due to compatibility issues with several packages, particularly `pymer4` and `rpy2`. These packages have complex dependencies that are better managed through conda.
+
+If you must use pip (not recommended), you can install the dependencies from requirements.txt:
+
+```bash
+pip install -r requirements.txt
+```
+
+**Note:** This may result in installation failures or runtime errors with certain packages.
+
+### Environment Management
+
+#### Updating the Environment
+If you need to update packages or add new dependencies:
+
+1. **Update existing packages:**
+```bash
+conda activate planning_stochastic
+conda update --all
+```
+
+2. **Add new packages:**
+```bash
+conda activate planning_stochastic
+conda install package_name
+# or
+pip install package_name
+```
+
+3. **Export updated environment:**
+```bash
+conda env export > environment.yml
+```
+
+#### Troubleshooting
+- If you encounter package conflicts, try using the conda environment approach
+- For R-related packages (`rpy2`, `pymer4`), ensure R is properly installed on your system
+- Some packages may require system-level dependencies (e.g., `graphviz` for visualization)
 
 ## Usage
 
