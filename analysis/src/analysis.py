@@ -142,6 +142,7 @@ class Analyzer():
         self.data = get_data(variant)
         self.baseline_name = baseline_name
         self.conditions = get_conditions(self.variant)
+        self.folders = folders
 
         self.model_data = defaultdict()
         self.model_fits = defaultdict()
@@ -158,6 +159,15 @@ class Analyzer():
                         continue
 
                     df = fit_to_dataframe(fit)
+
+                    # if the lapse rate is included, we need to account for it
+                    if "condition_lapse_0" in df.columns:
+                        # treat the lapse rate as if it were depth 0
+                        for i, c in enumerate(get_conditions(self.variant)): 
+                            lapse = df[f"condition_lapse_{i}"]
+                            df[c] = df[c] * (1 - lapse)
+                        df = df.drop(columns = [f"condition_lapse_{i}" for i in range(len(get_conditions(self.variant)))])
+
                     self.model_data[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = df
                     self.model_fits[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = (Model(filter_fn, value_fn, variant), fit)
 
@@ -193,7 +203,11 @@ class Analyzer():
             filter = filter.split("_")[-1]
             value = value.split("_")[-1]
             if value == "ignoreuncertain": value = "ignore-uncertain"
-            return f"{filter} {value}"
+
+            if len(self.folders) > 1: 
+                return f"{filter} {value} ({folder})"
+            else: 
+                return f"{filter} {value}"
 
         plot = defaultdict(lambda: [])
 
