@@ -8,7 +8,6 @@ sys.path.insert(0, parentdir)
 
 from modeling import *
 from modelchecking import *
-from analysis import *
 from utils import NpEncoder
 
 
