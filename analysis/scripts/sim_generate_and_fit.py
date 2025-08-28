@@ -5,6 +5,7 @@ Simulation Generation and Model Fitting Script
 This script combines simulation data generation with immediate model fitting,
 eliminating the need for intermediate JSON files.
 """
+
 import sys
 import os
 import json
@@ -140,7 +141,8 @@ def process_single_type(type_, jobid=None):
 
     # Process each player
     for player in tqdm.tqdm(players, desc=f"Processing {type_} players"):
-        user_idx = int(player.split('_')[2])
+        print(player)
+        user_idx = int(player.split('user')[-1])
         row = df.iloc[user_idx]
 
         # Set up parameters for this player
