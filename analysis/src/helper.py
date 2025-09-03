@@ -2,7 +2,6 @@ import numpy as np
 import xarray as xr
 from collections import defaultdict
 from prodict import Prodict
-from numba import jit
 
 def softmax(d, b_0 = 0, b_1 = 1):
     e_x = np.exp(-(b_0 + b_1 * d))
