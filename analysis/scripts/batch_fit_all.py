@@ -27,6 +27,11 @@ except TypeError:
 datafile = f"../data/raw/data_{type_}.json"
 with open(datafile, 'r') as f:
     data = json.load(f)
+
+
+if jobid >= len(players): 
+    print("Job ID is greater than the number of players. Exiting.")
+    sys.exit(1)
 player = list(data.keys())[jobid]
 
 param_specs = [
