@@ -5,7 +5,7 @@
 #SBATCH -c 1 # one CPU core per task
 #SBATCH -t 3:00:00
 #SBATCH --mem=4GB
-#SBATCH --array=0-20
+#SBATCH --array=0-99
 #SBATCH -o log/%j_%a.out
 #SBATCH -e log/%j_%a.error 
 #SBATCH --mail-type=ALL

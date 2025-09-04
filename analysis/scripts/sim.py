@@ -10,6 +10,11 @@ from modelchecking import *
 from utils import NpEncoder, format_games, get_conditions
 import numpy as np
 import tqdm
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--type", type=str, default="R", help="Type of data to use")
+args = parser.parse_args()
 
 def check_jobid():
     if os.getenv('SLURM_ARRAY_TASK_ID') is not None:
@@ -21,9 +26,9 @@ def check_jobid():
         return None
 
 jobid = check_jobid()
-type_ = "R"
-n_repeats = 1
-n_participants = 20
+type_ = args.type
+n_repeats = 100
+n_participants = 100
 
 datafile = f"../data/raw/data_{type_}.json"
 print("data file\t", datafile)
@@ -45,11 +50,11 @@ for user in users:
     }
 
     games = format_games(data[user]["data"])
-    gamedata = []
+    simulated_data = []
 
     for _ in tqdm.tqdm(range(n_repeats), total=n_repeats, desc=f"simulating {user}"): 
         prediction = model.predict(sim_params, games)
-        gamedata.extend([
+        simulated_data.extend([
                 {
                     "name": f"game_{user}_c{condition}_g{game}",
                     "p": get_conditions(type_)[condition],
@@ -64,7 +69,8 @@ for user in users:
                 for condition in range(5) for game in range(5)
         ])
 
-    multistart = MultiStart(model, games, {"inv_temp": 5}, use_grid = False, n=100)
+    simulated_games = format_games(simulated_data)
+    multistart = MultiStart(model, simulated_games, {"inv_temp": 5}, use_grid = False, n=100)
     multistart.sweep()
 
     filedir = f"../data/sim/fit/{type_}_{model.name}"
