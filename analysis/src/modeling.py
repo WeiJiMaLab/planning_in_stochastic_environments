@@ -90,13 +90,18 @@ class Model():
         Performs maximum likelihood estimation for the given parameters and data.
     predict(fitted_dict: dict, games: list) -> Prodict
     """
-    def __init__(self, filter_fn, value_fn, variant): 
+    def __init__(self, filter_fn, value_fn, variant, conditional_filter_params = True): 
         self.filter_fn = filter_fn
         self.value_fn = value_fn
         self.name = self.value_fn.__name__  + "." + self.filter_fn.__name__ 
         self.variant = variant
         self.default_params = {
             "inv_temp": 0,
+            "condition_inv_temp_0": 0,
+            "condition_inv_temp_1": 0,
+            "condition_inv_temp_2": 0,
+            "condition_inv_temp_3": 0,
+            "condition_inv_temp_4": 0,
             "condition_lapse_0": 0,
             "condition_lapse_1": 0,
             "condition_lapse_2": 0,
@@ -106,6 +111,11 @@ class Model():
         self.default_params.update({p:p for p in get_conditions(self.variant)})
         self.default_bounds = {
                 "inv_temp": (-5, 5), 
+                "condition_inv_temp_0": (-5, 5),
+                "condition_inv_temp_1": (-5, 5),
+                "condition_inv_temp_2": (-5, 5),
+                "condition_inv_temp_3": (-5, 5),
+                "condition_inv_temp_4": (-5, 5),
                 "condition_lapse_0": (0, 1),
                 "condition_lapse_1": (0, 1),
                 "condition_lapse_2": (0, 1),
@@ -113,6 +123,10 @@ class Model():
                 "condition_lapse_4": (0, 1),
         }
         self.default_bounds.update({p:(0, 1) for p in get_conditions(self.variant)})
+
+        # if set to false, we will only fit a single filter parameter for each condition, 
+        # default is TRUE
+        self.conditional_filter_params = conditional_filter_params
 
     def fit(self, fittable_params:dict, games):
         '''
@@ -158,14 +172,14 @@ class Model():
         fitted_params = {k: ml_params[k] for k in params_names + ["filter_params"]}
         fitted_params["nll"] = res.fun
         fitted_params["model"] = self.name
-        assert np.isclose(-ml.sum("conditions"), res.fun)
+        assert np.isclose(-ml, res.fun)
         
         return fitted_params
 
     def negative_log_likelihood(self, params_values, params_names, filter_pov_array, choose_left): 
         params = copy_and_update(self.default_params, dict(zip(params_names, params_values)))
         ml, _ = self.max_likelihood_estimation(params, filter_pov_array, choose_left)
-        nll = -ml.sum("conditions")
+        nll = -ml
         return nll.item()
 
     def max_likelihood_estimation(self, params, filter_pov_array, choose_left): 
@@ -196,14 +210,20 @@ class Model():
         p_left = self.get_p_left(params, filter_pov_array)
 
         log_likelihood = choose_left * np.log(p_left) + (1 - choose_left) * np.log(1 - p_left)
-        log_likelihood_player = log_likelihood.sum(["games", "trials"], keep_attrs = True)
-
-        ml = log_likelihood_player.max("filter_params")
-        mle = [argmax_random_tiebreaker(log_likelihood_player.sel(conditions = condition)) for condition in log_likelihood_player.conditions]
-        mle = xr.DataArray(mle, dims = "conditions")
-        mle["conditions"] = log_likelihood_player.conditions
         
-        return ml, copy_and_update(params, {"filter_params": dict(zip(mle.conditions.values, mle.values))})
+        if self.conditional_filter_params:
+            log_likelihood_player = log_likelihood.sum(["games", "trials"], keep_attrs = True)
+            ml = log_likelihood_player.max("filter_params")
+            mle = [argmax_random_tiebreaker(log_likelihood_player.sel(conditions = condition)) for condition in log_likelihood_player.conditions]
+            mle = xr.DataArray(mle, dims = "conditions")
+            mle["conditions"] = log_likelihood_player.conditions
+            return ml.sum(), copy_and_update(params, {"filter_params": dict(zip(mle.conditions.values, mle.values))})
+        
+        else: 
+            log_likelihood_player = log_likelihood.sum(["games", "trials", "conditions"], keep_attrs = True)
+            ml = log_likelihood_player.max("filter_params")
+            mle = argmax_random_tiebreaker(log_likelihood_player)
+            return ml.sum(), copy_and_update(params, {"filter_params": mle})
 
     def get_p_left(self, params, filter_pov_array):
         """
@@ -221,14 +241,20 @@ class Model():
         p_left : xarray.DataArray
             Array containing the probability of choosing the left option for each condition.
         """
-        # Extract the inverse temperature parameter
-        inv_temp = params["inv_temp"]
+        if "inv_temp" in params.keys(): 
+            inv_temp = params["inv_temp"]
+        elif "condition_inv_temp_0" in params.keys():
+            inv_temp = xr.DataArray([params[f"condition_inv_temp_{i}"] for i in range(len(get_conditions(self.variant)))], dims="conditions")
+        else:
+            inv_temp = 0
         
         if "lapse" in params.keys():
             lapse = params["lapse"]
-        else:
+        elif "condition_lapse_0" in params.keys():
             # Extract the lapse rate parameters for each condition
             lapse = xr.DataArray([params[f"condition_lapse_{i}"] for i in range(len(get_conditions(self.variant)))], dims="conditions")
+        else:
+            lapse = 0
         
         # Compute the probability of choosing the left option using the sigmoid function
         p_left = sigmoid(self.value_fn(filter_pov_array, variant=self.variant, value_params=params), b_1=np.exp(inv_temp))
