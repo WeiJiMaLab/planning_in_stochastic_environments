@@ -29,10 +29,11 @@ with open(datafile, 'r') as f:
     data = json.load(f)
 
 
-if jobid >= len(players): 
+if jobid >= len(list(data.keys())): 
     print("Job ID is greater than the number of players. Exiting.")
     sys.exit(1)
 player = list(data.keys())[jobid]
+print("Player\t", player)
 
 param_specs = [
     {
