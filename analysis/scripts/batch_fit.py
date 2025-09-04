@@ -38,7 +38,6 @@ params = {
 }
 
 # params.update({p:5 for p in get_conditions(type_)})
-
 filter_fns = [filter_depth, filter_rank, filter_value]
 value_fns = [value_EV, value_path, value_max, value_sum]
 

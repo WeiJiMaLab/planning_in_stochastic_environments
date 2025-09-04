@@ -16,4 +16,4 @@
 source /scratch/hl3976/ma_lab/.venv/bin/activate
 
 # run the python script
-python batch_fit_alt.py --type=$1
+python batch_fit_all.py --type=$1
