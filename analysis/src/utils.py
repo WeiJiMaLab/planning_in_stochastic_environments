@@ -14,7 +14,7 @@ def report_p_value(p):
         return "p < 10^{-10}"
     else:
         # Convert to scientific notation with 2 sigfigs
-        p_str = f"{p:.2e}"
+        p_str = f"{p:.1e}"
         # Split into mantissa and exponent
         mantissa, exponent = p_str.split('e')
         # Remove leading zero from exponent
@@ -38,7 +38,7 @@ class mapdict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
-    
+
 
 def alphabet(n):
     """Return the nth letter of the alphabet (0-indexed)"""

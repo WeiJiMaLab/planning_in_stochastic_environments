@@ -206,16 +206,7 @@ class Analyzer():
 
         self.reaction_time_data = pd.DataFrame(reaction_time_data)
 
-    def plot_model_comparison(self, n_bootstrap = 1e6, verbose = False, kind = "nll", format = "bar", ax=None, baseline_name=None): 
-        '''
-        baseline_name allows for a different baseline to be used for the model comparison. If None, the baseline_name is used.
-        '''
-
-        if ax is None:
-            fig, ax = plt.subplots(1, 1)
-        print("N bootstrap", n_bootstrap)
-        
-        def transform_name(name): 
+    def transform_name(self, name): 
             folder, filter, value = name.split(".")
             filter = filter.split("_")[-1]
             value = value.split("_")[-1]
@@ -225,15 +216,31 @@ class Analyzer():
             else: 
                 return f"{filter} {value}"
 
+    def plot_model_comparison(self, n_bootstrap = 1e6, verbose = False, kind = "nll", format = "bar", ax=None, baseline_name=None): 
+        '''
+        baseline_name allows for a different baseline to be used for the model comparison. If None, the baseline_name is used.
+        '''
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
+        print("N bootstrap", n_bootstrap)
+        
         plot = defaultdict(lambda: [])
 
         if baseline_name is None:
             baseline_name = self.baseline_name
 
-        for key in tqdm.tqdm(self.model_data.keys()):
-            if key == baseline_name: continue
+        keys = list(self.model_data.keys())
+        keys.remove(baseline_name)
+        keys.append(baseline_name)
+        
+        for key in tqdm.tqdm(keys):
             baseline = self.model_data[baseline_name]
             model = self.model_data[key]
+            if key == baseline_name:
+                name = r"$\bf{" + self.transform_name(baseline_name).replace("_", "\\_").replace(" ", "\ ") + r"}$"
+            else:
+                name = self.transform_name(key)
+
 
             n_model_params = len(set(model.columns) - set(["aic", "bic", "nll", "player"]))
             n_baseline_params = len(set(baseline.columns) - set(["aic", "bic", "nll", "player"]))
@@ -268,7 +275,7 @@ class Analyzer():
             plot["mean"].append(mean)
             plot["conf"].append(conf_centered)
             plot["sig"].append(sig)
-            plot["name"].append(transform_name(key))
+            plot["name"].append(name)
             plot["dist"].append(bootstrap_diff)
 
             if verbose: print(key, conf)
@@ -282,7 +289,6 @@ class Analyzer():
         sig_names = [plot.name[i] for i in range(len(plot.sig)) if plot.sig[i]]
         sig_star_positions = [sig_star_positions[i] for i in range(len(plot.sig)) if plot.sig[i]]
 
-        plt.figure(figsize = (5, len(plot.name) * 0.5))
         if format == "violin":
             color = self.colors(0.5)
             violin = ax.violinplot(np.array(plot.dist).T,
@@ -302,8 +308,9 @@ class Analyzer():
                 vp.set_edgecolor(color)
                 vp.set_linewidth(1.5)
 
-            ax.set_yticks([y + 1 for y in range(len(plot.name))],
-                  labels= plot.name)
+            ax.set_yticks([y + 1 for y in range(len(plot.name))], labels= plot.name)
+                  
+            
             ax.set_ylim([0.2, len(plot.name) + 0.5])
             ax.vlines(0, -1, len(plot.name) + 1, colors=self.colors(0.5), alpha=0.3, linestyle='dotted')
             ax.grid(c = [0.95, 0.95, 0.95], axis = 'y', linewidth = 1)
@@ -312,7 +319,7 @@ class Analyzer():
             ax.set_axisbelow(True)
             ax.xaxis.set_tick_params(width=1.5, length = 10)
             ax.yaxis.set_tick_params(width=1.5, length = 10)
-            ax.set_xlabel(f"Model {kind.upper()} - {transform_name(self.baseline_name)} {kind.upper()}\n($\leftarrow$ better fit)")
+            ax.set_xlabel(f"$\Delta$ {kind.upper()} (model - $\\bf{{baseline}}$) \n($\leftarrow$ better fit)")
 
         else:
             ax.barh(plot.name, plot.mean, align='center', color = "#a4c4eb", alpha=1)

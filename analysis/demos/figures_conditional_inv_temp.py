@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     # Create figure layouts
     fig, ax = plt.subplots(3, 3, figsize=(15, 15), gridspec_kw={'hspace': 0.5, 'wspace': 0.4})
-    fig2, ax2 = plt.subplots(3, 1, figsize=(4, 20), gridspec_kw={'hspace': 0.5})
+    fig2, ax2 = plt.subplots(3, 1, figsize=(5, 22), gridspec_kw={'hspace': 0.5})
 
     # Plot for each condition type
     for col, type_ in enumerate(["R", "V", "T"]):
@@ -73,6 +73,9 @@ if __name__ == "__main__":
                       ylim=[0, 1])
 
         ax[0, col].set_title("Reliability" if type_ == "R" else "Volatility" if type_ == "V" else "Controllability", color = analyzer.colors(0.5), pad = 15)
+        if col == 0:    
+            ax[0, col].text(-0.3, 1.5, f"Model: {analyzer.transform_name(analyzer.baseline_name)}", transform=ax[0, col].transAxes,
+                        fontsize=28, fontproperties=helvetica_regular, va='top', ha='left')
 
         # Plot condition checking
         analyzer.plot_checking_condition(trialwise_rewards, show_model=True, ax=ax[1, col])
@@ -95,7 +98,6 @@ if __name__ == "__main__":
                                     baseline_name="main_fit.filter_depth.value_path", kind = "nll")
         ax2[col].text(-0.3, 1.2, alphabet(col), transform=ax2[col].transAxes,
                      fontsize=28, fontproperties=helvetica_bold, va='top', ha='left')
-        ax2[col].set_xlabel("Model NLL - NLL Main")
 
         # Save analysis results
         with open(f"figures/{folder}/{filter_fn}.{value_fn}/_{type_}_summary.txt", "w") as f:
