@@ -7,7 +7,7 @@ currentdir = os.getcwd()
 parentdir = os.path.dirname(currentdir) + "/src/"
 sys.path.insert(0, parentdir) 
 from utils import NpEncoder, format_games
-from modeling import Model, MultiStart, filter_depth, filter_rank, filter_value, value_EV, value_path, value_max, value_sum
+from modeling import Model, MultiStart, filter_depth, filter_rank, filter_value, value_EV, value_path, value_max, value_sum, value_levelmean
 import json
 
 parser = argparse.ArgumentParser()
@@ -43,7 +43,7 @@ param_specs = [
         "multistart_n": 500,
     }, 
     {
-        "name": "original_fit", 
+        "name": "main_fit", 
         "params": {"inv_temp": 5},
         "conditional_filter_params": True,
         "multistart_n": 100,
@@ -63,7 +63,7 @@ param_specs = [
 ]
 
 filter_fns = [filter_depth, filter_rank, filter_value]
-value_fns = [value_EV, value_path, value_max, value_sum]
+value_fns = [value_EV, value_path, value_max, value_sum, value_levelmean]
 
 # fit models with multi-start
 with warnings.catch_warnings():

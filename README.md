@@ -12,7 +12,7 @@ This repository contains code for an experiment that studies human planning in s
 │   │   │   ├── data_R.json     # Reliability condition data
 │   │   │   ├── data_V.json     # Volatility condition data
 │   │   │   └── data_T.json     # Controllability condition data
-│   │   └── final_fit/          # Processed model fits
+│   │   └── main_fit/          # Processed model fits
 │   ├── demos/                  # Example notebooks and demonstrations
 │   │   ├── analysis.ipynb      # Demo of how to create figures
 │   │   └── figures.py          # Code for generating publication figures
@@ -44,7 +44,7 @@ https://pirate-treasure-9e3ba.web.app/?type=demoT (Controllability)
 Behavioral Data and Fitted Model Data can be found at: 
 https://osf.io/vyh8u/?view_only=54e1761ac51a44c7a6b64212f5a176a4
 
-data_R, data_V, data_T are in json format and final_fit.zip 
+data_R, data_V, data_T are in json format and main_fit.zip 
 can be unzipped and placed in its spot above.
 
 Place them in their respective places in the directory (shown above)

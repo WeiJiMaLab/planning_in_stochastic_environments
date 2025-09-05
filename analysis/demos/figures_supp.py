@@ -64,7 +64,7 @@ def get_filter_and_value_functions(type_):
 
 if __name__ == "__main__":
     helvetica_regular, helvetica_bold = set_helvetica_style()
-    folder = "final_fit"
+    folder = "main_fit"
     for filter_fn in ["filter_depth"]:
         for value_fn in ["value_path"]:
             os.makedirs(f"figures/{folder}/supplementary/{filter_fn}.{value_fn}", exist_ok=True)

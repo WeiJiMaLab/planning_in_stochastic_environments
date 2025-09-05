@@ -38,6 +38,11 @@ class mapdict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
+    
+
+def alphabet(n):
+    """Return the nth letter of the alphabet (0-indexed)"""
+    return chr(ord('A') + n)
 
 
 def format_games(games): 

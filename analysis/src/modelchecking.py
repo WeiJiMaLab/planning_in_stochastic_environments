@@ -8,6 +8,7 @@ from collections import defaultdict
 import tqdm as tqdm
 import os
 from prodict import Prodict
+from utils import get_conditions
 import json
 import copy
 
@@ -32,7 +33,11 @@ def load_fit(variant, filter_fn, value_fn, folder = "fit"):
         player = file.split(".")[0]
         with open(f"{filedir}/{file}", "r") as f: 
             player_fit = Prodict(json.load(f))
-            player_fit["filter_params"] = {float(i): player_fit.filter_params[i] for i in player_fit.filter_params.keys()}
+
+            if type(player_fit.filter_params) == dict:
+                player_fit["filter_params"] = {float(i): player_fit.filter_params[i] for i in player_fit.filter_params.keys()}
+            else: 
+                player_fit["filter_params"] = {float(i): player_fit.filter_params for i in get_conditions(variant)}
     
         fit[player] = player_fit.copy()
     

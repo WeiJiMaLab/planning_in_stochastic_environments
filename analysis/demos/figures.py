@@ -66,12 +66,12 @@ def get_filter_and_value_functions(type_):
 
 if __name__ == "__main__":
     helvetica_regular, helvetica_bold = set_helvetica_style()
-    folder = "final_fit"
+    folder = "main_fit"
     for filter_fn in ["filter_depth"]:
         for value_fn in ["value_path"]:
             os.makedirs(f"figures/{folder}/{filter_fn}.{value_fn}", exist_ok=True)
 
-            fig, ax = plt.subplots(3, 3, figsize=(12.5, 15), gridspec_kw={'hspace': 0.5, 'wspace': 0.4})
+            fig, ax = plt.subplots(3, 3, figsize=(15, 15), gridspec_kw={'hspace': 0.5, 'wspace': 0.4})
             fig2, ax2 = plt.subplots(3, 1, figsize=(4, 20), gridspec_kw={'hspace': 0.5})
             fig3, ax3 = plt.subplots(2, 3, figsize=(12.5, 10), gridspec_kw={'hspace': 0.5, 'wspace': 0.4})
             fig4, ax4 = plt.subplots(1, 3, figsize=(12.5, 5), gridspec_kw={'hspace': 0.5, 'wspace': 0.4})
@@ -110,7 +110,7 @@ if __name__ == "__main__":
                 set_rt_labels(ax[2, col], type_)
 
                 analyzer.plot_model_comparison(format="violin", ax=ax2[col])
-                ax2[col].text(-0.3, 1.1, FIG_LABELS_VIOLIN[col], transform=ax2[col].transAxes,
+                ax2[col].text(-0.3, 1.2, FIG_LABELS_VIOLIN[col], transform=ax2[col].transAxes,
                             fontsize=28, fontproperties=helvetica_bold, va='top', ha='left')
                 ax2[col].set_xscale("log")
                 ax2[col].set_xlim(10, 10**5)
@@ -126,7 +126,7 @@ if __name__ == "__main__":
                 df_reward, df_reward_sim = analyzer.plot_checking_condition(trialwise_rewards, show_model=True, ax=ax3[1, col])
                 set_condition_labels(ax3[1, col], type_)
 
-                ax4[col].text(-0.3, 1.1, FIG_LABELS_MODEL[col], transform=ax4[col].transAxes,
+                ax4[col].text(-0.3, 1.2, FIG_LABELS_MODEL[col], transform=ax4[col].transAxes,
                             fontsize=28, fontproperties=helvetica_bold, va='top', ha='left')
                 df_depth = analyzer.plot_stochasticity_vs_depth(ax=ax4[col])
                 ax4[col].set_xticklabels([strsimplify(x) for x in ax4[col].get_xticks()])

@@ -429,11 +429,24 @@ def value_path(pov_array: xr.DataArray, variant = None, value_params = None):
     
     return v_diff
 
+def value_levelmean(pov_array: xr.DataArray, variant = None, value_params = None):
+    values = pov_array.copy()
+    left = values.isel(rows = values.rows[1:], cols = values.cols[:-1])
+    right = values.isel(rows = values.rows[1:], cols = values.cols[1:])
+    
+    #set the above-diagonal values to np.nan
+    left_subtree = left.where(left.rows >= left.cols)
+    right_subtree = right.where(right.rows >= right.cols)
+
+    v_left = left_subtree.mean("cols").sum("rows")
+    v_right = right_subtree.mean("cols").sum("rows")
+    
+    return v_left - v_right
 
 def value_sum(pov_array: xr.DataArray, variant = None, value_params = None):
     values = pov_array.copy()
-    left = pov_array.isel(rows = pov_array.rows[1:], cols = pov_array.cols[:-1])
-    right = pov_array.isel(rows = pov_array.rows[1:], cols = pov_array.cols[1:])
+    left = values.isel(rows = values.rows[1:], cols = values.cols[:-1])
+    right = values.isel(rows = values.rows[1:], cols = values.cols[1:])
 
     #set the above-diagonal values to np.nan
     left_subtree = left.where(left.rows >= left.cols)
@@ -447,8 +460,8 @@ def value_sum(pov_array: xr.DataArray, variant = None, value_params = None):
 
 def value_max(pov_array: xr.DataArray, variant = None, value_params = None):
     values = pov_array.copy()
-    left = pov_array.isel(rows = pov_array.rows[1:], cols = pov_array.cols[:-1])
-    right = pov_array.isel(rows = pov_array.rows[1:], cols = pov_array.cols[1:])
+    left = values.isel(rows = values.rows[1:], cols = values.cols[:-1])
+    right = values.isel(rows = values.rows[1:], cols = values.cols[1:])
 
     #set the above-diagonal values to np.nan
     left_subtree = left.where(left.rows >= left.cols)

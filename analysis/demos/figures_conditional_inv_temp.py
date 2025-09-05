@@ -34,7 +34,7 @@ if __name__ == "__main__":
     helvetica_regular, helvetica_bold = set_helvetica_style()
     
     # Setup output directory
-    folder = "conditional_lapse"
+    folder = "conditional_inv_temp"
     filter_fn = "filter_depth" 
     value_fn = "value_path"
     os.makedirs(f"figures/{folder}/{filter_fn}.{value_fn}", exist_ok=True)
@@ -42,7 +42,6 @@ if __name__ == "__main__":
     # Create figure layouts
     fig, ax = plt.subplots(3, 3, figsize=(15, 15), gridspec_kw={'hspace': 0.5, 'wspace': 0.4})
     fig2, ax2 = plt.subplots(3, 1, figsize=(4, 20), gridspec_kw={'hspace': 0.5})
-    fig3, ax3 = plt.subplots(3, 1, figsize=(4, 20), gridspec_kw={'hspace': 0.5})
 
     # Plot for each condition type
     for col, type_ in enumerate(["R", "V", "T"]):
@@ -72,8 +71,8 @@ if __name__ == "__main__":
                       xlabel="Label Difference\n(Left - Right)",
                       ylabel="P(Choice = Left)", 
                       ylim=[0, 1])
-        ax[0, col].set_title("Reliability" if type_ == "R" else "Volatility" if type_ == "V" else "Controllability", color = analyzer.colors(0.5), pad = 15)
 
+        ax[0, col].set_title("Reliability" if type_ == "R" else "Volatility" if type_ == "V" else "Controllability", color = analyzer.colors(0.5), pad = 15)
 
         # Plot condition checking
         analyzer.plot_checking_condition(trialwise_rewards, show_model=True, ax=ax[1, col])
@@ -92,27 +91,18 @@ if __name__ == "__main__":
         ax[2, col].set_yticklabels([strsimplify(y) for y in ax[2, col].get_yticks()])
 
         # Plot model comparison
-        #AIC
         analyzer.plot_model_comparison(format="violin", ax=ax2[col], 
-                                    baseline_name="main_fit.filter_depth.value_path", kind = "aic")
+                                    baseline_name="main_fit.filter_depth.value_path", kind = "nll")
         ax2[col].text(-0.3, 1.2, alphabet(col), transform=ax2[col].transAxes,
                      fontsize=28, fontproperties=helvetica_bold, va='top', ha='left')
-        ax2[col].set_xlabel("Model AIC - AIC Main")
-
-        #BIC
-        analyzer.plot_model_comparison(format="violin", ax=ax3[col], 
-                                    baseline_name="main_fit.filter_depth.value_path", kind = "bic")
-        ax3[col].text(-0.3, 1.2, alphabet(col), transform=ax3[col].transAxes,
-                     fontsize=28, fontproperties=helvetica_bold, va='top', ha='left')
-        ax3[col].set_xlabel("Model BIC - BIC Main")
-
+        ax2[col].set_xlabel("Model NLL - NLL Main")
 
         # Save analysis results
         with open(f"figures/{folder}/{filter_fn}.{value_fn}/_{type_}_summary.txt", "w") as f:
             depth_result, depth_log = lmm(df_depth)
             f.write(f"LMM (Depth): {depth_result['modeltype']}\n{depth_log}\n\n")
-            f.write(f"\\newcommand\\lmmlapsedepth{type_}{{\\textcolor{{red}}{{LMM, $\\beta = {depth_result['beta']:.2f}$, $t_{{{depth_result['dof']:.0f}}} = {depth_result['tstat']:.1f}$, ${report_p_value(depth_result['pval'])}$}}}}\n")
+            f.write(f"\\newcommand\\lmminvtempdepth{type_}{{\\textcolor{{red}}{{LMM, $\\beta = {depth_result['beta']:.2f}$, $t_{{{depth_result['dof']:.0f}}} = {depth_result['tstat']:.1f}$, ${report_p_value(depth_result['pval'])}$}}}}\n")
 
     # Save figures
-    fig.savefig(f"figures/supp_conditional_lapse_grid.png", bbox_inches='tight')
-    fig2.savefig(f"figures/supp_conditional_lapse_aic.png", bbox_inches='tight')
+    fig.savefig(f"figures/supp_conditional_inv_temp_grid.png", bbox_inches='tight')
+    fig2.savefig(f"figures/supp_conditional_inv_temp_nll.png", bbox_inches='tight')

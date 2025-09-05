@@ -117,7 +117,7 @@ def bootstrap(x, n = 1e4):
     return x[samp_indices]
 
 class Analyzer(): 
-    def __init__(self, baseline_name, filter_fns, value_fns, variant, colors, folders = ["fit"], verbose = False):
+    def __init__(self, baseline_name, filter_fns, value_fns, variant, colors, folders = ["fit"], verbose = False, supplementary_models = None):
         """
         Initialize the analysis object.
 
@@ -148,10 +148,9 @@ class Analyzer():
         self.model_fits = defaultdict()
 
         for folder in folders:
-            for f, filter_fn in filter_fns: 
-                for v, value_fn in value_fns: 
-                    if verbose: print(variant, f, v)  
-
+            for _, filter_fn in filter_fns: 
+                for _, value_fn in value_fns: 
+                    if verbose: print(variant, filter_fn.__name__, value_fn.__name__)
                     try:
                         fit = load_fit(variant, filter_fn, value_fn, folder = folder)
                     except FileNotFoundError:
@@ -170,6 +169,20 @@ class Analyzer():
 
                     self.model_data[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = df
                     self.model_fits[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = (Model(filter_fn, value_fn, variant), fit)
+
+        if supplementary_models is not None: 
+            for folder, filter_fn, value_fn in supplementary_models:
+                if verbose: print(folder, filter_fn.__name__, value_fn.__name__)
+                try: 
+                    fit = load_fit(variant, filter_fn, value_fn, folder = folder)
+                except FileNotFoundError:
+                    print(f"Warning: file not found for variant {variant}, filter {filter_fn.__name__}, value {value_fn.__name__}, folder {folder}")
+                    continue
+                df = fit_to_dataframe(fit)
+                self.model_data[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = df
+                self.model_fits[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = (Model(filter_fn, value_fn, variant), fit)
+                self.folders.append(folder)
+
 
         self.colors = colors
         self.baseline = self.model_data[baseline_name]
@@ -193,7 +206,11 @@ class Analyzer():
 
         self.reaction_time_data = pd.DataFrame(reaction_time_data)
 
-    def plot_model_comparison(self, n_bootstrap = 1e6, verbose = False, kind = "nll", format = "bar", ax=None): 
+    def plot_model_comparison(self, n_bootstrap = 1e6, verbose = False, kind = "nll", format = "bar", ax=None, baseline_name=None): 
+        '''
+        baseline_name allows for a different baseline to be used for the model comparison. If None, the baseline_name is used.
+        '''
+
         if ax is None:
             fig, ax = plt.subplots(1, 1)
         print("N bootstrap", n_bootstrap)
@@ -203,7 +220,6 @@ class Analyzer():
             filter = filter.split("_")[-1]
             value = value.split("_")[-1]
             if value == "ignoreuncertain": value = "ignore-uncertain"
-
             if len(self.folders) > 1: 
                 return f"{filter} {value} ({folder})"
             else: 
@@ -211,9 +227,12 @@ class Analyzer():
 
         plot = defaultdict(lambda: [])
 
+        if baseline_name is None:
+            baseline_name = self.baseline_name
+
         for key in tqdm.tqdm(self.model_data.keys()):
-            if key == self.baseline_name: continue
-            baseline = self.baseline
+            if key == baseline_name: continue
+            baseline = self.model_data[baseline_name]
             model = self.model_data[key]
 
             n_model_params = len(set(model.columns) - set(["aic", "bic", "nll", "player"]))
