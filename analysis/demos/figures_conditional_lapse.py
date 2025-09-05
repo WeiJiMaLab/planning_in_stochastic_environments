@@ -10,7 +10,6 @@ from analysis import Analyzer, lmm
 from plots import set_helvetica_style
 from utils import colormaps, report_p_value, strsimplify, get_conditions, alphabet
 
-
 def get_filter_and_value_functions(type_):
     filter_fns = [
         ["depth", filter_depth],
