@@ -30,15 +30,15 @@ def get_results(model):
 
 def lmm(df):
     df = pl.from_pandas(df)
-    error_log = ""
+    error_log = []
     for formula, label in [ 
-        ("y ~ conditions + (1 + conditions|participants)", "FULL"), 
+        ("y ~ conditions + (1 + conditions|participants)", "Full"), 
         ("y ~ conditions + (1 + conditions||participants)", "Uncorrelated Slopes"), 
         ("y ~ conditions + (1|participants)", "Intercept-only")]:
 
         model = lmer(formula, data = df)
         result, _, message = get_results(model)
-        error_log += f"{formula}: {message}\n"
+        error_log.append(f"{formula}:{message}")
         if result is not None: 
             estimate = result["conditions"]["estimate"]
             tstat = result["conditions"]["t_stat"]
@@ -61,7 +61,7 @@ def glmm(df):
             "y ~ x * conditions + (1 + x + conditions|participants)", 
             "y ~ x + conditions + (1 + x + conditions|participants)", 
             "y ~ conditions + (1 + conditions|participants)", 
-            "FULL"
+            "Full"
         ), 
         (
             "y ~ x * conditions + (1 + x + conditions||participants)", 
@@ -75,7 +75,7 @@ def glmm(df):
             "y ~ conditions + (1|participants)", 
             "Intercept-only") 
         ]: 
-        error_log = ""
+        error_log = []
 
         full_model = glmer(full, data = df, family = "binomial")
         no_interaction_model = glmer(no_interaction, data = df, family = "binomial")
@@ -85,8 +85,9 @@ def glmm(df):
         no_interaction_result, no_interaction_loglik, no_interaction_message = get_results(no_interaction_model)
         no_main_result, no_main_loglik, no_main_message = get_results(no_main_model)
 
+        error_log.append(f"{full}:{full_message}")
+
         if full_result is not None and no_interaction_result is not None and no_main_result is not None:
-            error_log += f"{full}: {full_message}\n{no_interaction}: {no_interaction_message}\n{no_main}: {no_main_message}\n" 
             chi2_inter = 2 * (full_loglik - no_interaction_loglik)
             pval_inter = chi2.sf(chi2_inter, 1)
 

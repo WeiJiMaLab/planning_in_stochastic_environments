@@ -5,7 +5,7 @@ currentdir = os.getcwd()
 parentdir = os.path.dirname(currentdir) + "/src/"
 sys.path.insert(0, parentdir) 
 
-from modeling import filter_depth, filter_rank, filter_value, value_path, value_EV, value_max, value_sum
+from modeling import filter_depth, filter_rank, filter_value, value_path, value_EV, value_max, value_sum, value_levelmean
 from modelchecking import trialwise_rewards, trialwise_greedydiff, trialwise_chooseleft
 from analysis import Analyzer, lmm, glmm
 from plots import set_helvetica_style
@@ -46,20 +46,16 @@ def get_filter_and_value_functions(type_):
         ["rank", filter_rank],
         ["value", filter_value],
     ]
-    # exclude EV from volatility condition
-    if type_ == "V": 
-        compare_value_fns = [
-            ["path", value_path], 
-            ["max", value_max],
-            ["sum", value_sum]
-        ]
-    else: 
-        compare_value_fns = [
-            ["path", value_path], 
-            ["EV", value_EV],
-            ["max", value_max],
-            ["sum", value_sum]
-        ]
+
+    compare_value_fns = [
+        ["path", value_path], 
+        ["max", value_max],
+        ["sum", value_sum], 
+        ["level-mean", value_levelmean]
+    ]
+
+    if type_ == "R" or type_ == "T": 
+        compare_value_fns.append(["EV", value_EV])
     return compare_filter_fns, compare_value_fns
 
     
@@ -112,8 +108,8 @@ if __name__ == "__main__":
                 analyzer.plot_model_comparison(format="violin", ax=ax2[col])
                 ax2[col].text(-0.3, 1.2, FIG_LABELS_VIOLIN[col], transform=ax2[col].transAxes,
                             fontsize=28, fontproperties=helvetica_bold, va='top', ha='left')
-                ax2[col].set_xscale("log")
-                ax2[col].set_xlim(10, 10**5)
+                # ax2[col].set_xscale("log")
+                ax2[col].set_xlim(-10, 1e3)
 
                 for row in range(2):
                     idx = row * 3 + col
@@ -134,45 +130,45 @@ if __name__ == "__main__":
                 ax4[col].set_xlabel("Stochasticity Level (%)")
                 ax4[col].set_ylabel("Planning Depth")
 
-                with open(f"figures/{folder}/{filter_fn}.{value_fn}/_{type_}_summary.txt", "w") as f:
-                    print("=" * 48)
-                    print(f"Summary file: figures/{folder}/{filter_fn}.{value_fn}/_{type_}_summary.txt")
+                # with open(f"figures/{folder}/{filter_fn}.{value_fn}/_{type_}_summary.txt", "w") as f:
+                #     print("=" * 48)
+                #     print(f"Summary file: figures/{folder}/{filter_fn}.{value_fn}/_{type_}_summary.txt")
 
-                    # GLMM
-                    glmm_result, glmm_log = glmm(df_value)
-                    f.write(f"GLMM: {glmm_result['modeltype']}\n{glmm_log}\n\n")
+                #     # GLMM
+                #     glmm_result, glmm_log = glmm(df_value)
+                #     f.write(f"GLMM: {glmm_result['modeltype']}\n{glmm_log}\n\n")
 
-                    # LMM (Reward)
-                    reward_result, reward_log = lmm(df_reward)
-                    f.write(f"LMM (Reward): {reward_result['modeltype']}\n{reward_log}\n\n")
+                #     # LMM (Reward)
+                #     reward_result, reward_log = lmm(df_reward)
+                #     f.write(f"LMM (Reward): {reward_result['modeltype']}\n{reward_log}\n\n")
 
-                    # LMM (RT)
-                    rt_result, rt_log = lmm(df_rt)
-                    f.write(f"LMM (RT): {rt_result['modeltype']}\n{rt_log}\n\n")
+                #     # LMM (RT)
+                #     rt_result, rt_log = lmm(df_rt)
+                #     f.write(f"LMM (RT): {rt_result['modeltype']}\n{rt_log}\n\n")
 
-                    # LMM (Depth)
-                    depth_result, depth_log = lmm(df_depth)
-                    f.write(f"LMM (Depth): {depth_result['modeltype']}\n{depth_log}\n\n")
+                #     # LMM (Depth)
+                #     depth_result, depth_log = lmm(df_depth)
+                #     f.write(f"LMM (Depth): {depth_result['modeltype']}\n{depth_log}\n\n")
 
-                    print("=" * 48)
+                #     print("=" * 48)
 
-                    # LaTeX commands
-                    f.write(
-                        f"\\newcommand\\glmm{type_}{{\\textcolor{{red}}{{GLMM, $\\beta = {glmm_result['beta_main']:.2f}$, $\\chi^2(1) = {glmm_result['chi2_main']:.1f}$, ${report_p_value(glmm_result['pval_main'])}$}}}}\n"
-                    )
-                    f.write(
-                        f"\\newcommand\\glmminteraction{type_}{{\\textcolor{{red}}{{GLMM, interaction $\\beta = {glmm_result['beta_inter']:.2f}$, $\\chi^2(1) = {glmm_result['chi2_inter']:.1f}$, ${report_p_value(glmm_result['pval_inter'])}$}}}}\n"
-                    )
-                    f.write(
-                        f"\\newcommand\\lmmreward{type_}{{\\textcolor{{red}}{{LMM, $\\beta = {reward_result['beta']:.2f}$, $t_{{{reward_result['dof']:.0f}}} = {reward_result['tstat']:.1f}$, ${report_p_value(reward_result['pval'])}$}}}}\n"
-                    )
-                    f.write(
-                        f"\\newcommand\\lmmrt{type_}{{\\textcolor{{red}}{{LMM, $\\beta = {rt_result['beta']:.2f}$, $t_{{{rt_result['dof']:.0f}}} = {rt_result['tstat']:.1f}$, ${report_p_value(rt_result['pval'])}$}}}}\n"
-                    )
-                    f.write(
-                        f"\\newcommand\\lmmdepth{type_}{{\\textcolor{{red}}{{LMM, $\\beta = {depth_result['beta']:.2f}$, $t_{{{depth_result['dof']:.0f}}} = {depth_result['tstat']:.1f}$, ${report_p_value(depth_result['pval'])}$}}}}\n"
-                    )
-                    print("=" * 48)
+                #     # LaTeX commands
+                #     f.write(
+                #         f"\\newcommand\\glmm{type_}{{\\textcolor{{red}}{{GLMM, $\\beta = {glmm_result['beta_main']:.2f}$, $\\chi^2(1) = {glmm_result['chi2_main']:.1f}$, ${report_p_value(glmm_result['pval_main'])}$}}}}\n"
+                #     )
+                #     f.write(
+                #         f"\\newcommand\\glmminteraction{type_}{{\\textcolor{{red}}{{GLMM, interaction $\\beta = {glmm_result['beta_inter']:.2f}$, $\\chi^2(1) = {glmm_result['chi2_inter']:.1f}$, ${report_p_value(glmm_result['pval_inter'])}$}}}}\n"
+                #     )
+                #     f.write(
+                #         f"\\newcommand\\lmmreward{type_}{{\\textcolor{{red}}{{LMM, $\\beta = {reward_result['beta']:.2f}$, $t_{{{reward_result['dof']:.0f}}} = {reward_result['tstat']:.1f}$, ${report_p_value(reward_result['pval'])}$}}}}\n"
+                #     )
+                #     f.write(
+                #         f"\\newcommand\\lmmrt{type_}{{\\textcolor{{red}}{{LMM, $\\beta = {rt_result['beta']:.2f}$, $t_{{{rt_result['dof']:.0f}}} = {rt_result['tstat']:.1f}$, ${report_p_value(rt_result['pval'])}$}}}}\n"
+                #     )
+                #     f.write(
+                #         f"\\newcommand\\lmmdepth{type_}{{\\textcolor{{red}}{{LMM, $\\beta = {depth_result['beta']:.2f}$, $t_{{{depth_result['dof']:.0f}}} = {depth_result['tstat']:.1f}$, ${report_p_value(depth_result['pval'])}$}}}}\n"
+                #     )
+                #     print("=" * 48)
 
             #save figures
             fig.savefig(f"figures/{folder}/{filter_fn}.{value_fn}/grid.png", bbox_inches='tight')
