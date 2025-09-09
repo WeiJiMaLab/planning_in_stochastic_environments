@@ -16,16 +16,16 @@ import polars as pl
 def get_results(model):
     model.fit()
     if not "[1] TRUE" in model.convergence_status: 
-        return None, None, "Model failed to converge"
+        return None, None, "Failed to converge"
     elif "singular" in " ".join(model.r_console).lower(): 
-        return None, None, "Singular fit detected"
+        return None, None, "Singular"
     elif "warning" in " ".join(model.r_console).lower(): 
         return None, None, "Convergence warnings"
     elif not model.fitted: 
-        return None, None, "Model not properly fitted"
+        return None, None, "Not properly fitted"
     result = model.result_fit.to_pandas().set_index("term").transpose()
     loglik = model.result_fit_stats.to_pandas()["logLik"].iloc[0]
-    return result, loglik, "Converged Properly"
+    return result, loglik, "Converged"
 
 
 def lmm(df):
@@ -455,10 +455,12 @@ class Analyzer():
         ax.yaxis.set_tick_params(width=1.5, length = 10)
         ax.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
 
+        df = y.to_dataframe(name="y").reset_index()
         if show_model:
-            df = y.to_dataframe(name="y").reset_index()
             df_sim = sim_y.to_dataframe(name="y").reset_index()
             return df, df_sim
+        else: 
+            return df, None
 
     def plot_checking(self, x_fun, y_fun, n_bins = None, show_model = True, ax=None): 
         if ax is None:
@@ -511,8 +513,10 @@ class Analyzer():
         ax.xaxis.set_tick_params(width=1.5, length = 10)
         ax.yaxis.set_tick_params(width=1.5, length = 10)
         ax.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
-
+        
+        df = pd.concat([x.to_dataframe(name="x"), y.to_dataframe(name="y")], axis=1).reset_index()
         if show_model:
-            df = pd.concat([x.to_dataframe(name="x"), y.to_dataframe(name="y")], axis=1).reset_index()
             df_sim = pd.concat([sim_x.to_dataframe(name="x"), sim_y.to_dataframe(name="y")], axis=1).reset_index()
             return df, df_sim
+        else: 
+            return df, None

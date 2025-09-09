@@ -108,8 +108,7 @@ if __name__ == "__main__":
                 analyzer.plot_model_comparison(format="violin", ax=ax2[col])
                 ax2[col].text(-0.3, 1.2, FIG_LABELS_VIOLIN[col], transform=ax2[col].transAxes,
                             fontsize=28, fontproperties=helvetica_bold, va='top', ha='left')
-                # ax2[col].set_xscale("log")
-                ax2[col].set_xlim(-10, 1e3)
+                ax2[col].set_xlim(10, 10**5)
 
                 for row in range(2):
                     idx = row * 3 + col
