@@ -97,6 +97,7 @@ class Model():
         self.variant = variant
         self.default_params = {
             "inv_temp": 0,
+            "lapse": 0,
             "condition_inv_temp_0": 0,
             "condition_inv_temp_1": 0,
             "condition_inv_temp_2": 0,
@@ -110,18 +111,20 @@ class Model():
         }
         self.default_params.update({p:p for p in get_conditions(self.variant)})
         self.default_bounds = {
-                "inv_temp": (-5, 5), 
+                "inv_temp": (-5, 5),
                 "condition_inv_temp_0": (-5, 5),
                 "condition_inv_temp_1": (-5, 5),
                 "condition_inv_temp_2": (-5, 5),
                 "condition_inv_temp_3": (-5, 5),
                 "condition_inv_temp_4": (-5, 5),
+                "lapse": (0, 1),
                 "condition_lapse_0": (0, 1),
                 "condition_lapse_1": (0, 1),
                 "condition_lapse_2": (0, 1),
                 "condition_lapse_3": (0, 1),
                 "condition_lapse_4": (0, 1),
         }
+        
         self.default_bounds.update({p:(0, 1) for p in get_conditions(self.variant)})
 
         # if set to false, we will only fit a single filter parameter for each condition, 
