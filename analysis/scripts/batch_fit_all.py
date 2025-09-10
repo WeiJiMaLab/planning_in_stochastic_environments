@@ -37,38 +37,32 @@ print("Player\t", player)
 
 param_specs = [
     {
-        "name": "main_fit", 
-        "params": {"inv_temp": 5},
+        "name": "main", 
+        "params": {"inv_temp": 5, "lapse": 5},
         "conditional_filter_params": True,
         "multistart_n": 100,
     },
     {
-        "name": "conditional_inv_temp_alternative",
-        "params": {f"condition_inv_temp_{i}": 5 for i in range(5)},
+        "name": "fixed_depth_variable_beta",
+        "params": {"lapse": 5, **{f"condition_inv_temp_{i}": 5 for i in range(5)}},
         "conditional_filter_params": False,
         "multistart_n": 100,
     }, 
     {
-        "name": "conditional_inv_temp_extension",
-        "params": {f"condition_inv_temp_{i}": 5 for i in range(5)},
+        "name": "variable_depth_variable_beta",
+        "params": {"lapse": 5, **{f"condition_inv_temp_{i}": 5 for i in range(5)}},
         "conditional_filter_params": True,
         "multistart_n": 100,
     },
     {
-        "name": "conditional_lapse_alternative",
+        "name": "fixed_depth_variable_lapse",
         "params": {"inv_temp": 5, **{f"condition_lapse_{i}": 5 for i in range(5)}},
         "conditional_filter_params": False,
         "multistart_n": 100,
     },
     {
-        "name": "conditional_lapse_extension",
+        "name": "variable_depth_variable_lapse",
         "params": {"inv_temp": 5, **{f"condition_lapse_{i}": 5 for i in range(5)}},
-        "conditional_filter_params": True,
-        "multistart_n": 100,
-    },
-    {
-        "name": "global_lapse", 
-        "params": {"inv_temp": 5, "lapse": 5},
         "conditional_filter_params": True,
         "multistart_n": 100,
     },
