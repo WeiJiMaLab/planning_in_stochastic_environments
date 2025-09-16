@@ -7,15 +7,14 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 from matplotlib.colors import Normalize
-from pymer4.models import lmer, glmer
+from pymer4.models import lmer, glmer, lm
 from scipy.stats import chi2
 from utils import report_p_value
 import polars as pl 
 
-
 def get_results(model):
     model.fit()
-    if not "[1] TRUE" in model.convergence_status: 
+    if hasattr(model, 'convergence_status') and not "[1] TRUE" in model.convergence_status:
         return None, None, "Failed to converge"
     elif "singular" in " ".join(model.r_console).lower(): 
         return None, None, "Singular"
@@ -27,7 +26,6 @@ def get_results(model):
     loglik = model.result_fit_stats.to_pandas()["logLik"].iloc[0]
     return result, loglik, "Converged"
 
-
 def lmm(df):
     df = pl.from_pandas(df)
     error_log = []
@@ -35,7 +33,6 @@ def lmm(df):
         ("y ~ conditions + (1 + conditions|participants)", "Full"), 
         ("y ~ conditions + (1 + conditions||participants)", "Uncorrelated Slopes"), 
         ("y ~ conditions + (1|participants)", "Intercept-only")]:
-
         model = lmer(formula, data = df)
         result, _, message = get_results(model)
         error_log.append(f"{formula}:{message}")
@@ -51,6 +48,23 @@ def lmm(df):
                 "dof": dof, 
                 "pval": pval
             }, error_log
+
+    formula, label = "y ~ conditions + 1", "Fixed Effects"
+    model = lm(formula, data = df)
+    result, _, message = get_results(model)
+    error_log.append(f"{formula}:{message}")
+    if result is not None: 
+        estimate = result["conditions"]["estimate"]
+        tstat = result["conditions"]["t_stat"]
+        dof = result["conditions"]["df"]
+        pval = result["conditions"]["p_value"]
+        return {
+            "modeltype": label, 
+            "beta": estimate, 
+            "tstat": tstat, 
+            "dof": dof, 
+            "pval": pval
+        }, error_log
 
     raise RuntimeError(message)
 
@@ -110,8 +124,6 @@ def glmm(df):
             return result, error_log
     raise RuntimeError(full_message, no_interaction_message, no_main_message)
 
-
-
 def bootstrap(x, n = 1e4): 
     n_samps = len(x)
     samp_indices = np.random.choice(np.arange(n_samps), (int(n), n_samps), replace = True)
@@ -147,42 +159,28 @@ class Analyzer():
 
         self.model_data = defaultdict()
         self.model_fits = defaultdict()
+        flag = True
 
         for folder in folders:
             for _, filter_fn in filter_fns: 
                 for _, value_fn in value_fns: 
-                    if verbose: print(variant, filter_fn.__name__, value_fn.__name__)
-                    try:
-                        fit = load_fit(variant, filter_fn, value_fn, folder = folder)
-                    except FileNotFoundError:
-                        print(f"Warning: file not found for variant {variant}, filter {filter_fn.__name__}, value {value_fn.__name__}, folder {folder}")
+                    df, fit = self.preprocess_data(variant, filter_fn, value_fn, folder, verbose = flag)
+                    if df is None:
                         continue
-
-                    df = fit_to_dataframe(fit)
-
-                    # if the lapse rate is included, we need to account for it
-                    if "condition_lapse_0" in df.columns:
-                        # treat the lapse rate as if it were depth 0
-                        for i, c in enumerate(get_conditions(self.variant)): 
-                            lapse = df[f"condition_lapse_{i}"]
-                            df[c] = df[c] * (1 - lapse)
-                        df = df.drop(columns = [f"condition_lapse_{i}" for i in range(len(get_conditions(self.variant)))])
-
                     self.model_data[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = df
                     self.model_fits[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = (Model(filter_fn, value_fn, variant), fit)
+                    flag = False
 
+        flag = True
         if supplementary_models is not None: 
             for folder, filter_fn, value_fn in supplementary_models:
-                if verbose: print(folder, filter_fn.__name__, value_fn.__name__)
-                try: 
-                    fit = load_fit(variant, filter_fn, value_fn, folder = folder)
-                except FileNotFoundError:
-                    print(f"Warning: file not found for variant {variant}, filter {filter_fn.__name__}, value {value_fn.__name__}, folder {folder}")
+                df, fit = self.preprocess_data(variant, filter_fn, value_fn, folder, verbose = flag)
+                if df is None:
                     continue
-                df = fit_to_dataframe(fit)
                 self.model_data[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = df
                 self.model_fits[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = (Model(filter_fn, value_fn, variant), fit)
                 self.folders.append(folder)
+                flag = False
 
 
         self.colors = colors
@@ -207,15 +205,69 @@ class Analyzer():
 
         self.reaction_time_data = pd.DataFrame(reaction_time_data)
 
+    def preprocess_data(self, variant, filter_fn, value_fn, folder, verbose=False):
+        """Preprocess model fit data by loading fits and computing information criteria.
+        
+        Args:
+            variant: Model variant name
+            filter_fn: Filter function used in model
+            value_fn: Value function used in model 
+            folder: Directory containing fit files
+            verbose: Whether to print debug info
+            
+        Returns:
+            Tuple of (preprocessed dataframe, raw fit data) or (None, None) if files not found
+        """
+        if verbose: 
+            print(f"folder: {folder}")
+        try:
+            fit = load_fit(variant, filter_fn, value_fn, folder=folder, verbose=False)
+        except FileNotFoundError:
+            print(f"Warning: file not found for variant {variant}, filter {filter_fn.__name__}, "
+                  f"value {value_fn.__name__}, folder {folder}")
+            return None, None
+
+        df = fit_to_dataframe(fit)
+        
+        # Calculate information criteria
+        params = sorted(set(df.columns.astype(str)) - set(["player", "nll"]))
+        n_params = len(params)
+        if verbose:
+            print(f"\t[nParams] Found {n_params} params: {params}")
+
+        n = 150 * 7  # trials * choices per trial
+        df["n_params"] = n_params
+        df["aic"] = 2 * (n_params + df["nll"]) 
+        df["bic"] = n_params * np.log(n) + df["nll"]
+
+        # Handle global depth parameter
+        if "global_depth" in params:
+            for c in get_conditions(self.variant):
+                df[c] = df["global_depth"]
+            df = df.drop(columns=["global_depth"])
+
+        # Handle conditional lapse rates
+        if "condition_lapse_0" in df.columns:
+            if verbose:
+                print("\t[Conditional Lapse] found conditional lapse, calculating effective depth")
+            for i, c in enumerate(get_conditions(self.variant)):
+                lapse = df[f"condition_lapse_{i}"]
+                df[c] = df[c] * (1 - lapse)
+            lapse_cols = [f"condition_lapse_{i}" for i in range(len(get_conditions(self.variant)))]
+            df = df.drop(columns=lapse_cols)
+
+        return df, fit
+
+
     def transform_name(self, name): 
-            folder, filter, value = name.split(".")
-            filter = filter.split("_")[-1]
-            value = value.split("_")[-1]
-            if value == "ignoreuncertain": value = "ignore-uncertain"
-            if len(self.folders) > 1: 
-                return f"{filter} {value} ({folder})"
-            else: 
-                return f"{filter} {value}"
+        folder, filter, value = name.split(".")
+        filter = filter.split("_")[-1]
+        value = value.split("_")[-1]
+        if value == "ignoreuncertain": value = "ignore-uncertain"
+        if len(self.folders) > 1: 
+            return f"{filter} {value} ({folder})"
+        else: 
+            return f"{filter} {value}"
 
     def plot_model_comparison(self, n_bootstrap = 1e6, verbose = False, kind = "nll", format = "bar", ax=None, baseline_name=None): 
         '''
@@ -241,19 +293,6 @@ class Analyzer():
                 name = r"$\bf{" + self.transform_name(baseline_name).replace("_", "\\_").replace(" ", "\ ") + r"}$"
             else:
                 name = self.transform_name(key)
-
-
-            n_model_params = len(set(model.columns) - set(["aic", "bic", "nll", "player"]))
-            n_baseline_params = len(set(baseline.columns) - set(["aic", "bic", "nll", "player"]))
-            
-            # 150 games times 7 choices per game
-            n = 150 * 7
-            model["aic"] = 2 * (n_model_params + model["nll"])
-            model["bic"] = n_model_params * np.log(n) + model["nll"]
-
-            baseline["aic"] = 2 * (n_baseline_params + baseline["nll"])
-            baseline["bic"] = n_baseline_params * np.log(n) + baseline["nll"]
-
 
             # bootstrapped NLL model
             if kind == "nll":

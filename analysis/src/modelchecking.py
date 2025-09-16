@@ -12,7 +12,7 @@ from utils import get_conditions
 import json
 import copy
 
-def load_fit(variant, filter_fn, value_fn, folder = "fit"): 
+def load_fit(variant, filter_fn, value_fn, folder = "fit", verbose = False): 
     '''
     Loads and returns the fit data for a given model variant.
     Parameters:
@@ -28,8 +28,8 @@ def load_fit(variant, filter_fn, value_fn, folder = "fit"):
     filedir = f"../data/{folder}/{variant}_{model.name}"
     
     fit = defaultdict(lambda: {})
-    print(filedir)
-    for file in tqdm.tqdm([f for f in sorted(os.listdir(filedir)) if "user" in f]): 
+    files = [f for f in sorted(os.listdir(filedir)) if "user" in f]
+    for file in tqdm.tqdm(files, disable = not verbose): 
         player = file.split(".")[0]
         with open(f"{filedir}/{file}", "r") as f: 
             player_fit = Prodict(json.load(f))
@@ -37,11 +37,11 @@ def load_fit(variant, filter_fn, value_fn, folder = "fit"):
             if type(player_fit.filter_params) == dict:
                 player_fit["filter_params"] = {float(i): player_fit.filter_params[i] for i in player_fit.filter_params.keys()}
             else: 
-                player_fit["filter_params"] = {float(i): player_fit.filter_params for i in get_conditions(variant)}
+                player_fit["filter_params"] = {"global_depth": player_fit.filter_params}
     
         fit[player] = player_fit.copy()
     
-    assert len(fit) == 100
+    assert len(fit) == 100, f"Expected 100 participants, got {len(fit)}"
     return fit
 
 def fit_to_dataframe(fit):

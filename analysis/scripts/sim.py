@@ -45,6 +45,7 @@ for user in users:
 
     sim_params = {
             "model": model.name,
+            "lapse": np.random.uniform(0, 1),
             "inv_temp": np.random.uniform(-4, 4),
             "filter_params": {p: np.random.choice(8) for p in get_conditions(type_)}
     }
@@ -70,7 +71,7 @@ for user in users:
         ])
 
     simulated_games = format_games(simulated_data)
-    multistart = MultiStart(model, simulated_games, {"inv_temp": 5}, use_grid = False, n=100)
+    multistart = MultiStart(model, simulated_games, {"lapse":5, "inv_temp": 5}, use_grid = False, n=100)
     multistart.sweep()
 
     filedir = f"../data/sim/fit/{type_}_{model.name}"
