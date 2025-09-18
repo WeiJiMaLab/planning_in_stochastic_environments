@@ -27,7 +27,7 @@ def check_jobid():
 
 jobid = check_jobid()
 type_ = args.type
-n_repeats = 100
+n_repeats = 20
 n_participants = 100
 
 datafile = f"../data/raw/data_{type_}.json"
@@ -43,12 +43,9 @@ for user in users:
     sim_user = f"sim_{user}"
     model = Model(filter_depth, value_path, variant=type_)
 
-    sim_params = {
-            "model": model.name,
-            "lapse": np.random.uniform(0, 1),
-            "inv_temp": np.random.uniform(-4, 4),
-            "filter_params": {p: np.random.choice(8) for p in get_conditions(type_)}
-    }
+    default_params = {"model": model.name, "filter_params": {p: np.random.choice(8) for p in get_conditions(type_)}}
+    flexible_params = {"lapse": np.random.uniform(0, 1), "inv_temp": np.random.uniform(-4, 4)}
+    sim_params = {**default_params, **flexible_params}
 
     games = format_games(data[user]["data"])
     simulated_data = []
@@ -71,7 +68,7 @@ for user in users:
         ])
 
     simulated_games = format_games(simulated_data)
-    multistart = MultiStart(model, simulated_games, {"lapse":5, "inv_temp": 5}, use_grid = False, n=100)
+    multistart = MultiStart(model, simulated_games, {k:5 for k in flexible_params.keys()}, use_grid = False, n=100)
     multistart.sweep()
 
     filedir = f"../data/sim/fit/{type_}_{model.name}"
