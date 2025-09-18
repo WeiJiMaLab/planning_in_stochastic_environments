@@ -74,7 +74,6 @@ value_fns = [value_EV, value_path, value_max, value_sum, value_levelmean]
 # fit models with multi-start
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    
     games = format_games(data[player]["data"])
     for param_spec in param_specs:
         for filter_fn in filter_fns:

@@ -35,7 +35,7 @@ def get_filter_and_value_functions(type_):
     return compare_filter_fns, compare_value_fns
 
 
-def total_rt_analysis(folder = "main_fit", filter_fn = "filter_depth", value_fn = "value_path", plot_fns = ["greedydiff", "rewards", "depth"]):
+def total_rt_analysis(folder = "main", filter_fn = "filter_depth", value_fn = "value_path", plot_fns = ["greedydiff", "rewards", "depth"]):
     fig, axs = plt.subplots(1, 3, figsize=(12.5, 5), gridspec_kw={'hspace': 0.5, 'wspace': 0.4})
     result_df = []
     log_df = []
@@ -113,7 +113,7 @@ def total_rt_analysis(folder = "main_fit", filter_fn = "filter_depth", value_fn 
     fig.savefig(f"figures/{folder}/empirical_first_rt.png", bbox_inches='tight', dpi=600)
 
 
-def model_comparison_analysis(folder="main_fit",
+def model_comparison_analysis(folder="main",
                               filter_fn="filter_depth",
                               value_fn="value_path",
                               types=["R", "V", "T"],
@@ -137,16 +137,16 @@ def model_comparison_analysis(folder="main_fit",
         analyzer = Analyzer(f"{folder}.{filter_fn}.{value_fn}",
                             *get_filter_and_value_functions(type_),
                             type_, colors=get_colormap(type_), folders=[folder], 
-                            supplementary_models=[("main_fit", filter_depth, value_path)])
+                            supplementary_models=[("main", filter_depth, value_path)])
 
         # Main plot: full range
-        analyzer.plot_model_comparison(ax=ax_main, format="violin", kind = kind, baseline_name = "main_fit.filter_depth.value_path", n_bootstrap = 1e3)
+        analyzer.plot_model_comparison(ax=ax_main, format="violin", kind = kind, baseline_name = "main.filter_depth.value_path")
         ax_main.set_xlim(*full_range)
         ax_main.grid(True, axis='y')
         ax_main.text(-0.3, 1.15, alphabet(i), transform=ax_main.transAxes, fontsize=32, fontproperties=helvetica_bold, va='top', ha='left')
 
         # Zoomed-in right panel
-        analyzer.plot_model_comparison(ax=ax_zoom, format="violin", kind = kind, baseline_name = "main_fit.filter_depth.value_path", n_bootstrap = 1e3)
+        analyzer.plot_model_comparison(ax=ax_zoom, format="violin", kind = kind, baseline_name = "main.filter_depth.value_path")
         ax_zoom.set_xlim(*zoom_range)
         ax_zoom.set_xlabel("(Zoomed in)")
         ax_zoom.set_yticklabels([])  # remove duplicate labels
@@ -160,7 +160,7 @@ def model_comparison_analysis(folder="main_fit",
                 bbox_inches='tight', dpi=600)
 
 
-def model_checking_analysis(folder = "main_fit", 
+def model_checking_analysis(folder = "main", 
                             filter_fn = "filter_depth", 
                             value_fn = "value_path", 
                             types = ["R", "V", "T"], 
@@ -188,15 +188,15 @@ def model_checking_analysis(folder = "main_fit",
             if plot_fn == "depth":
                 df_depth = analyzer.plot_stochasticity_vs_depth(ax=ax)
                 ax.set(xlabel="Stochasticity Level (%)", ylabel="Planning Depth", xticklabels=[strsimplify(x) for x in ax.get_xticks()], yticklabels=[strsimplify(y) for y in ax.get_yticks()])
+                if save_analysis: 
+                    depth_result, depth_log = lmm(df_depth)
+                    depth_result.update({"Model Name":analyzer.baseline_name.replace(".", "_"), "Stochasticity Type": type_, "Variable": "depth"})
+                    print(depth_result)
+                    result_df.append(depth_result)
 
-                depth_result, depth_log = lmm(df_depth)
-                depth_result.update({"Model Name":analyzer.baseline_name.replace(".", "_"), "Stochasticity Type": type_, "Variable": "depth"})
-                print(depth_result)
-                result_df.append(depth_result)
-
-                for log in depth_log:
-                    formula, status = log.split(":")
-                    log_df.append({"Model Name": analyzer.transform_name(analyzer.baseline_name), "Condition": {"R": "Reliability", "V": "Volatility", "T": "Controllability"}[type_], "Variable": "y = depth", "Formula / Status": f"\\texttt{{{formula}:{status}}}"})
+                    for log in depth_log:
+                        formula, status = log.split(":")
+                        log_df.append({"Model Name": analyzer.transform_name(analyzer.baseline_name), "Condition": {"R": "Reliability", "V": "Volatility", "T": "Controllability"}[type_], "Variable": "y = depth", "Formula / Status": f"\\texttt{{{formula}:{status}}}"})
 
             ax.text(-0.3, 1.15, alphabet(row * len(types) + col), transform=ax.transAxes, fontsize=28, fontproperties=helvetica_bold, va='top', ha='left')
             if row == 0: 
@@ -217,54 +217,47 @@ def model_checking_analysis(folder = "main_fit",
 import glob
 if __name__ == "__main__":
     helvetica_regular, helvetica_bold = set_helvetica_style()
-    folder = "conditional_inv_temp_extension"
+    # folder = "fixed_depth_variable_beta"
+    # filter_fn = "filter_depth"
+    # value_fn = "value_path"
+
+    # os.makedirs(f"figures/{folder}", exist_ok=True)
+    # model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "aic", save_name = "aic")
+    # model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "bic", save_name = "bic")
+    # model_checking_analysis(folder, "filter_depth", "value_path", save_name = "grid", save_analysis = False)
+
+    folder = "variable_depth_variable_lapse"
     filter_fn = "filter_depth"
     value_fn = "value_path"
 
-    # os.makedirs("figures/conditional_inv_temp_extension", exist_ok=True)
-    # model_comparison_analysis("conditional_inv_temp_extension", "filter_depth", "value_path", inset = True, kind = "aic", save_name = "aic")
-    # model_comparison_analysis("conditional_inv_temp_extension", "filter_depth", "value_path", inset = True, kind = "bic", save_name = "bic")
-
-
-    os.makedirs("figures/conditional_lapse_alternative", exist_ok=True)
-    model_comparison_analysis("conditional_lapse_alternative", "filter_depth", "value_path", inset = True, kind = "nll", save_name = "nll")
-    model_checking_analysis("conditional_lapse_alternative", "filter_depth", "value_path", save_name = "nll")
-
-
-    # model_comparison_analysis("main_fit", "filter_depth", "value_levelmean", inset = True)
-
-    # model_checking_analysis("main_fit", "filter_depth", "value_path")
-    # model_checking_analysis("main_fit", "filter_depth", "value_EV", types = ["R", "T"], plot_fns = ["greedydiff"], save_analysis = False)
-    # model_checking_analysis("main_fit", "filter_depth", "value_max")
-    # model_checking_analysis("main_fit", "filter_depth", "value_sum")
-    # model_checking_analysis("main_fit", "filter_depth", "value_levelmean", types = ["V", "T"], save_name = "vt_grid", save_analysis = False)
-    # model_checking_analysis("main_fit", "filter_depth", "value_levelmean")
-
+    os.makedirs(f"figures/{folder}", exist_ok=True)
+    # model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "aic", save_name = "aic")
+    # model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "bic", save_name = "bic")
+    model_checking_analysis(folder, "filter_depth", "value_path", save_name = "grid", save_analysis = True)
 
     df_logs = []
-    for filename in glob.glob(f"figures/*/*/depth_log.csv"):
+    for filename in glob.glob(f"figures/{folder}/*/depth_log.csv"):
         df_logs.append(pd.read_csv(filename))
     
     df_logs = pd.concat(df_logs)
     df_logs = df_logs.set_index(["Model Name", "Condition", "Variable", "Formula / Status"])
 
-    df_logs.to_latex(f"figures/depth_log.tex", index=True)
+    df_logs.to_latex(f"figures/{folder}/depth_log.tex", index=True)
     # Replace \cline with \cmidrule(lr) in depth_log.tex
-    with open('figures/depth_log.tex', 'r') as f:
+    with open(f'figures/{folder}/depth_log.tex', 'r') as f:
         content = f.read()
     content = content.replace('\\cline', '\\cmidrule(lr)')
-    with open('figures/depth_log.tex', 'w') as f:
+    with open(f'figures/{folder}/depth_log.tex', 'w') as f:
         f.write(content)
 
-
     df_results = []
-    for filename in sorted(glob.glob(f"figures/*/*/depth_result.csv")):
+    for filename in sorted(glob.glob(f"figures/{folder}/*/depth_result.csv")):
         df_results.append(pd.read_csv(filename))
     df_results = pd.concat(df_results)
     df_results = df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
     
     # Write to tex file with pgf format
-    with open(f"figures/depth_result.tex", 'w') as f:
+    with open(f"figures/{folder}/depth_result.tex", 'w') as f:
         for idx, row in df_results.iterrows():
             model, stoch, var = idx
             key = f"{model}.{stoch}.{var}"
@@ -276,33 +269,6 @@ if __name__ == "__main__":
             f.write(f"\\pgfkeyssetvalue{{{key}}}{{LMM, $\\beta = {beta:.2f}$, ")
             f.write(f"$t_{{{int(dof)}}} = {tstat:.1f}$, ")
             f.write(f"${report_p_value(pval)}$}}\n")
-
-    glmm_df_results = []
-    for filename in sorted(glob.glob(f"figures/*/*/glmm_result.csv")):
-        glmm_df_results.append(pd.read_csv(filename))
-    glmm_df_results = pd.concat(glmm_df_results)
-    glmm_df_results = glmm_df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
-
-    with open(f"figures/depth_result.tex", 'a') as f:
-        for idx, row in glmm_df_results.iterrows():
-            model, stoch, var = idx
-            key = f"{model}.{stoch}.{var}"
-            beta_main = row['beta_main']
-            chi2_main = row['chi2_main']
-            pval_main = row['pval_main']
-
-            beta_inter = row['beta_inter']
-            chi2_inter = row['chi2_inter']
-            pval_inter = row['pval_inter']
-
-            f.write(f"\\pgfkeyssetvalue{{{key}}}{{GLMM, main effect $\\beta = {beta_main:.2f}$, ")
-            f.write(f"$\chi^2(1) = {chi2_main:.1f}$, ")
-            f.write(f"${report_p_value(pval_main)}$}}\n")
-
-            f.write(f"\\pgfkeyssetvalue{{{key + ".interaction"}}}{{GLMM, interaction $\\beta = {beta_inter:.2f}$, ")
-            f.write(f"$\chi^2(1) = {chi2_inter:.1f}$, ")
-            f.write(f"${report_p_value(pval_inter)}$}}\n")
-
 
             
 

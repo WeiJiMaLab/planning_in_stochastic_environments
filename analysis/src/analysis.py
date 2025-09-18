@@ -245,7 +245,7 @@ class Analyzer():
             for c in get_conditions(self.variant):
                 df[c] = df["global_depth"]
             df = df.drop(columns=["global_depth"])
-
+            
         # Handle conditional lapse rates
         if "condition_lapse_0" in df.columns:
             if verbose:

@@ -95,21 +95,7 @@ class Model():
         self.value_fn = value_fn
         self.name = self.value_fn.__name__  + "." + self.filter_fn.__name__ 
         self.variant = variant
-        self.default_params = {
-            "inv_temp": 0,
-            "lapse": 0,
-            "condition_inv_temp_0": 0,
-            "condition_inv_temp_1": 0,
-            "condition_inv_temp_2": 0,
-            "condition_inv_temp_3": 0,
-            "condition_inv_temp_4": 0,
-            "condition_lapse_0": 0,
-            "condition_lapse_1": 0,
-            "condition_lapse_2": 0,
-            "condition_lapse_3": 0,
-            "condition_lapse_4": 0        
-        }
-        self.default_params.update({p:p for p in get_conditions(self.variant)})
+        self.default_params = {p:p for p in get_conditions(self.variant)}
         self.default_bounds = {
                 "inv_temp": (-5, 5),
                 "condition_inv_temp_0": (-5, 5),
@@ -124,7 +110,6 @@ class Model():
                 "condition_lapse_3": (0, 1),
                 "condition_lapse_4": (0, 1),
         }
-        
         self.default_bounds.update({p:(0, 1) for p in get_conditions(self.variant)})
 
         # if set to false, we will only fit a single filter parameter for each condition, 
@@ -247,6 +232,7 @@ class Model():
         if "inv_temp" in params.keys(): 
             inv_temp = params["inv_temp"]
         elif "condition_inv_temp_0" in params.keys():
+            # using conditional inverse temperatures
             inv_temp = xr.DataArray([params[f"condition_inv_temp_{i}"] for i in range(len(get_conditions(self.variant)))], dims="conditions")
         else:
             inv_temp = 0
@@ -254,7 +240,7 @@ class Model():
         if "lapse" in params.keys():
             lapse = params["lapse"]
         elif "condition_lapse_0" in params.keys():
-            # Extract the lapse rate parameters for each condition
+            # using conditional lapse rates
             lapse = xr.DataArray([params[f"condition_lapse_{i}"] for i in range(len(get_conditions(self.variant)))], dims="conditions")
         else:
             lapse = 0
@@ -302,7 +288,10 @@ class Model():
         filter_pov_array = self.filter_fn(pov_array)
 
         p_left_ = self.get_p_left(params, filter_pov_array)
-        p_left = xr.concat([p_left_.sel(conditions = condition, filter_params = params["filter_params"][condition]) for condition in p_left_.conditions.values], dim = "conditions")
+        if "global_depth" in params["filter_params"].keys():
+            p_left = xr.concat([p_left_.sel(conditions = condition, filter_params = params["filter_params"]["global_depth"]) for condition in p_left_.conditions.values], dim = "conditions")
+        else:
+            p_left = xr.concat([p_left_.sel(conditions = condition, filter_params = params["filter_params"][condition]) for condition in p_left_.conditions.values], dim = "conditions")
         p_left['conditions'] = p_left_.conditions
     
         choose_left = (np.random.rand(*p_left.shape) < p_left).astype(int)
