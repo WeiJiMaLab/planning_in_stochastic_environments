@@ -49,18 +49,6 @@ param_specs = [
         "multistart_n": 100,
     }, 
     {
-        "name": "variable_depth_variable_beta",
-        "params": {"lapse": 5, **{f"condition_inv_temp_{i}": 5 for i in range(5)}},
-        "conditional_filter_params": True,
-        "multistart_n": 100,
-    },
-    {
-        "name": "fixed_depth_variable_lapse",
-        "params": {"inv_temp": 5, **{f"condition_lapse_{i}": 5 for i in range(5)}},
-        "conditional_filter_params": False,
-        "multistart_n": 100,
-    },
-    {
         "name": "variable_depth_variable_lapse",
         "params": {"inv_temp": 5, **{f"condition_lapse_{i}": 5 for i in range(5)}},
         "conditional_filter_params": True,
