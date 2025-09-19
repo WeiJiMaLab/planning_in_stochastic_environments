@@ -403,6 +403,37 @@ class Analyzer():
         # plt.savefig(f"figures/{self.variant}_stochasticity_vs_depth.svg", bbox_inches='tight')
         return out_df[["participants", "conditions", "y"]]
 
+    def plot_stochasticity_vs_conditional_inv_temp(self, ax=None): 
+        if ax is None:
+            fig, ax = plt.subplots(1, 1)
+            
+        baseline = self.baseline
+        
+        mean = np.mean(baseline[[f"condition_inv_temp_{i}" for i in range(5)]].values, axis = 0)
+        std = np.std(baseline[[f"condition_inv_temp_{i}" for i in range(5)]].values, axis = 0, ddof = 1)/np.sqrt(len(baseline))
+        ax.errorbar(np.array(self.conditions) * 100, mean, std, capsize = 3, elinewidth=2, markeredgewidth=2, linewidth=2, color = self.colors(0.5))
+        ax.set_xlabel("Stochasticity Level (%)\n")
+        ax.set_ylabel("Inverse Temperature")
+        ax.set_xticks(np.array(self.conditions) * 100)
+            
+        df = pd.melt(baseline, "player", value_vars = self.conditions)
+
+        df["condition"] = df["variable"].astype(float)
+        df["inv_temp"] = df["value"]
+        
+        ax.spines[['top', 'right']].set_visible(False)
+        ax.spines[['left', 'bottom']].set_linewidth(1.5)
+        ax.set_axisbelow(True)
+        ax.xaxis.set_tick_params(width=1.5, length = 10)
+        ax.yaxis.set_tick_params(width=1.5, length = 10)
+        ax.grid(c = [0.95, 0.95, 0.95], axis = 'both', linewidth = 1)
+
+        out_df = df.copy()
+        out_df = out_df.rename(columns = {"condition": "conditions", "inv_temp": "y", "player": "participants"})
+
+        # plt.savefig(f"figures/{self.variant}_stochasticity_vs_depth.svg", bbox_inches='tight')
+        return out_df[["participants", "conditions", "y"]]
+
     def plot_stochasticity_vs_rt(self, yspace = np.linspace(0.8, 1.8, 6), ax=None, first_rt = True): 
         if ax is None:
             fig, ax = plt.subplots(1, 1)

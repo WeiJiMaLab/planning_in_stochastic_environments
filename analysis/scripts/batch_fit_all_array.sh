@@ -3,7 +3,7 @@
 # Example of running python script with a job array
 #SBATCH -J model_fit
 #SBATCH -c 1 # one CPU core per task
-#SBATCH -t 13:00:00
+#SBATCH -t 17:00:00
 #SBATCH --mem=4GB
 #SBATCH --array=0-99
 #SBATCH -o log/%j_%a.out

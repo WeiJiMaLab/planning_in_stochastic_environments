@@ -19,15 +19,15 @@ def get_filter_and_value_functions(type_):
     # which filter functions to compare to
     compare_filter_fns = [
         ["depth", filter_depth],
-        ["rank", filter_rank],
-        ["value", filter_value],
+        # ["rank", filter_rank],
+        # ["value", filter_value],
     ]
 
     compare_value_fns = [
         ["path", value_path], 
-        ["max", value_max],
-        ["sum", value_sum], 
-        ["level-mean", value_levelmean]
+        # ["max", value_max],
+        # ["sum", value_sum], 
+        # ["level-mean", value_levelmean]
     ]
 
     if type_ == "R" or type_ == "T": 
@@ -35,95 +35,17 @@ def get_filter_and_value_functions(type_):
     return compare_filter_fns, compare_value_fns
 
 
-def total_rt_analysis(folder = "main", filter_fn = "filter_depth", value_fn = "value_path", plot_fns = ["greedydiff", "rewards", "depth"]):
-    fig, axs = plt.subplots(1, 3, figsize=(12.5, 5), gridspec_kw={'hspace': 0.5, 'wspace': 0.4})
-    result_df = []
-    log_df = []
-    glmm_result_df = []
-
-    for col, type_ in enumerate(["R", "V", "T"]):
-        ax = axs[col]
-        analyzer = Analyzer(f"{folder}.{filter_fn}.{value_fn}", *get_filter_and_value_functions(type_), type_, colors=get_colormap(type_), folders=[folder])
-        ax.text(-0.3, 1.15, alphabet(col), transform=ax.transAxes, fontsize=28, fontproperties=helvetica_bold, va='top', ha='left')
-        
-        df_rt = analyzer.plot_stochasticity_vs_rt(ax=ax, yspace=np.linspace(2.8, 6.8, 6), first_rt=False)
-        ax.set(xticklabels=[strsimplify(x) for x in ax.get_xticks()], xlabel="Stochasticity Level (%)", ylabel="Total RT (s)")
-
-        rt_result, rt_log = lmm(df_rt)
-        rt_result.update({"Model Name":"empirical", "Stochasticity Type": type_, "Variable": "total_rt"})
-        result_df.append(rt_result)
-
-        for log in rt_log:
-            formula, status = log.split(":")
-            log_df.append({"Model Name": "empirical", "Condition": {"R": "Reliability", "V": "Volatility", "T": "Controllability"}[type_], "Variable": "y = log(totalRT)", "Formula / Status": f"\\texttt{{{formula}:{status}}}"})
-
-    fig.savefig(f"figures/empirical_total_rt.png", bbox_inches='tight', dpi=600)
-
-    fig, axs = plt.subplots(len(plot_fns), 3, figsize=(5 * 3, 5 * len(plot_fns)), gridspec_kw={'hspace': 0.5, 'wspace': 0.4})
-    for col, type_ in enumerate(["R", "V", "T"]):
-        analyzer = Analyzer(f"{folder}.{filter_fn}.{value_fn}", *get_filter_and_value_functions(type_), type_, colors=get_colormap(type_), folders=[folder])
-        for row, plot_fn in enumerate(plot_fns):
-            ax = axs[col] if len(plot_fns) == 1 else axs[row, col]
-
-            if plot_fn == "greedydiff":
-                df_value, df_value_sim = analyzer.plot_checking(trialwise_greedydiff, trialwise_chooseleft, n_bins=5, show_model=False, ax=ax)
-                ax.set(xticks=[-6, -3, 0, 3, 6], xlabel="Label Difference\n(Left - Right)", ylabel="P(Choice = Left)", ylim=[0, 1])
-                glmm_result, glmm_log = glmm(df_value)
-                glmm_result.update({"Model Name":"empirical", "Stochasticity Type": type_, "Variable": "greedydiff", "isGLMM": True})
-                glmm_result_df.append(glmm_result)
-
-                for log in glmm_log:
-                    formula, status = log.split(":")
-                    log_df.append({"Model Name": "empirical", "Condition": {"R": "Reliability", "V": "Volatility", "T": "Controllability"}[type_], "Variable": "x = label diff, y = P(Left)", "Formula / Status": f"\\texttt{{{formula}:{status}}}"})
-
-            
-            if plot_fn == "rewards":
-                df_reward, df_reward_sim = analyzer.plot_checking_condition(trialwise_rewards, show_model=False, ax=ax)
-                ax.set(ylabel="Points Earned", xlabel="Stochasticity Level (%)", yticks=[4.8, 5.2, 5.6, 6, 6.4], xticks=np.array(get_conditions(type_)) * 100, xticklabels=[strsimplify(x) for x in ax.get_xticks()], yticklabels=[strsimplify(y) for y in ax.get_yticks()])
-                reward_result, reward_log = lmm(df_reward)
-                reward_result.update({"Model Name":"empirical", "Stochasticity Type": type_, "Variable": "points"})
-                result_df.append(reward_result)  
-
-                for log in reward_log:
-                    formula, status = log.split(":")
-                    log_df.append({"Model Name": "empirical", "Condition": {"R": "Reliability", "V": "Volatility", "T": "Controllability"}[type_], "Variable": "y = points", "Formula / Status": f"\\texttt{{{formula}:{status}}}"})
-
-            if plot_fn == "depth":
-                df_rt = analyzer.plot_stochasticity_vs_rt(ax=ax, first_rt = True)
-                ax.set(xticklabels=[strsimplify(x) for x in ax.get_xticks()], xlabel="Stochasticity Level (%)", ylabel="First Choice RT (s)")
-
-                depth_result, depth_log = lmm(df_rt)
-                depth_result.update({"Model Name":"empirical", "Stochasticity Type": type_, "Variable": "rt"})
-                result_df.append(depth_result)
-
-                for log in depth_log:
-                    formula, status = log.split(":")
-                    log_df.append({"Model Name": "empirical", "Condition": {"R": "Reliability", "V": "Volatility", "T": "Controllability"}[type_], "Variable": "y = log(firstRT)", "Formula / Status": f"\\texttt{{{formula}:{status}}}"})
-
-            ax.text(-0.3, 1.15, alphabet(row * 3 + col), transform=ax.transAxes, fontsize=28, fontproperties=helvetica_bold, va='top', ha='left')
-            if row == 0: 
-                ax.set_title("Reliability" if type_ == "R" else "Volatility" if type_ == "V" else "Controllability", color = analyzer.colors(0.5), pad = 15)
-
-    if len(log_df) > 0 and len(result_df) > 0:
-        os.makedirs(f"figures/{folder}/empirical", exist_ok=True)
-        pd.DataFrame(log_df).to_csv(f"figures/{folder}/empirical/depth_log.csv", index=False)
-        pd.DataFrame(result_df).to_csv(f"figures/{folder}/empirical/depth_result.csv", index=False)
-        pd.DataFrame(glmm_result_df).to_csv(f"figures/{folder}/empirical/glmm_result.csv", index=False)
-    
-    fig.savefig(f"figures/{folder}/empirical_first_rt.png", bbox_inches='tight', dpi=600)
-
-
 def model_comparison_analysis(folder="main",
                               filter_fn="filter_depth",
                               value_fn="value_path",
                               types=["R", "V", "T"],
                               zoom_range=(-50, 500),
-                              full_range=(-1000, 20000),
+                              full_range=(-5000, 20000),
                               kind = "aic",
                               inset = False,
                               save_name=None):
 
-    fig, axes = plt.subplots(len(types), 2, figsize=(15, 6 * len(types)), 
+    fig, axes = plt.subplots(len(types), 2, figsize=(15, 3 * len(types)), 
                              gridspec_kw={'width_ratios':[0.6, 0.4], 'wspace':0.05},
                              constrained_layout=True)
     
@@ -186,8 +108,8 @@ def model_checking_analysis(folder = "main",
                 ax.set(ylabel="Points Earned", xlabel="Stochasticity Level (%)", yticks=[4.8, 5.2, 5.6, 6, 6.4], xticks=np.array(get_conditions(type_)) * 100, xticklabels=[strsimplify(x) for x in ax.get_xticks()], yticklabels=[strsimplify(y) for y in ax.get_yticks()])
 
             if plot_fn == "depth":
-                df_depth = analyzer.plot_stochasticity_vs_depth(ax=ax)
-                ax.set(xlabel="Stochasticity Level (%)", ylabel="Planning Depth", xticklabels=[strsimplify(x) for x in ax.get_xticks()], yticklabels=[strsimplify(y) for y in ax.get_yticks()])
+                df_depth = analyzer.plot_stochasticity_vs_conditional_inv_temp(ax=ax)
+                ax.set(xlabel="Stochasticity Level (%)", ylabel="Log Inverse Temperature", xticklabels=[strsimplify(x) for x in ax.get_xticks()], yticklabels=[strsimplify(y) for y in ax.get_yticks()])
                 if save_analysis: 
                     depth_result, depth_log = lmm(df_depth)
                     depth_result.update({"Model Name":analyzer.baseline_name.replace(".", "_"), "Stochasticity Type": type_, "Variable": "depth"})
@@ -217,23 +139,23 @@ def model_checking_analysis(folder = "main",
 import glob
 if __name__ == "__main__":
     helvetica_regular, helvetica_bold = set_helvetica_style()
-    # folder = "fixed_depth_variable_beta"
-    # filter_fn = "filter_depth"
-    # value_fn = "value_path"
-
-    # os.makedirs(f"figures/{folder}", exist_ok=True)
-    # model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "aic", save_name = "aic")
-    # model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "bic", save_name = "bic")
-    # model_checking_analysis(folder, "filter_depth", "value_path", save_name = "grid", save_analysis = False)
-
-    folder = "variable_depth_variable_lapse"
+    folder = "fixed_depth_variable_beta"
     filter_fn = "filter_depth"
     value_fn = "value_path"
 
     os.makedirs(f"figures/{folder}", exist_ok=True)
-    # model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "aic", save_name = "aic")
-    # model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "bic", save_name = "bic")
-    model_checking_analysis(folder, "filter_depth", "value_path", save_name = "grid", save_analysis = True)
+    model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "aic", save_name = "aic")
+    model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "bic", save_name = "bic")
+    model_checking_analysis(folder, "filter_depth", "value_path", save_name = "grid", save_analysis = False)
+
+    # folder = "variable_depth_variable_lapse"
+    # filter_fn = "filter_depth"
+    # value_fn = "value_path"
+
+    # os.makedirs(f"figures/{folder}", exist_ok=True)
+    # # model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "aic", save_name = "aic")
+    # # model_comparison_analysis(folder, "filter_depth", "value_path", inset = True, kind = "bic", save_name = "bic")
+    # model_checking_analysis(folder, "filter_depth", "value_path", save_name = "grid", save_analysis = True)
 
     df_logs = []
     for filename in glob.glob(f"figures/{folder}/*/depth_log.csv"):
