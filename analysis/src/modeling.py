@@ -308,7 +308,6 @@ class Model():
         return model_data
 
 
-
 # Filter functions
 def filter_value(pov_array: xr.DataArray, filter_params: dict= {"value": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}):
     assert "value" in filter_params.keys(), "Missing value in filter_params"

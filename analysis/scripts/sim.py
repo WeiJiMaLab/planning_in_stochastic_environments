@@ -64,6 +64,7 @@ for user in users:
                     "is_transition": prediction.is_transition.isel(conditions=condition, games=game).astype(bool).values,
                     "trials": [{"rt": 0} for _ in range(7)],
                 }
+                # do this for the first 5 games
                 for condition in range(5) for game in range(5)
         ])
 
@@ -71,7 +72,54 @@ for user in users:
     multistart = MultiStart(model, simulated_games, {k:5 for k in flexible_params.keys()}, use_grid = False, n=100)
     multistart.sweep()
 
-    filedir = f"../data/sim/fit/{type_}_{model.name}"
+    filedir = f"../data/simulated/{type_}_{model.name}"
+    os.makedirs(filedir, exist_ok=True)
+
+    with open(f"{filedir}/{sim_user}_sim.json", "w") as f:
+        json.dump(sim_params, f, cls=NpEncoder)
+
+    with open(f"{filedir}/{sim_user}_fit.json", "w") as f:
+        json.dump(multistart.best, f, cls=NpEncoder)
+
+# this time, do conditional - inverse temp
+for user in users:
+    sim_user = f"sim_{user}"
+    model = Model(filter_depth, value_path, variant=type_)
+
+    default_params = {"model": model.name, "filter_params": {"global_depth": np.random.choice(8)}}
+    flexible_params = {"lapse": np.random.uniform(0, 1)}
+
+    for i in range(5):
+        flexible_params[f"condition_inv_temp_{i}"] = np.random.uniform(-4, 4)
+
+    sim_params = {**default_params, **flexible_params}
+
+    games = format_games(data[user]["data"])
+    simulated_data = []
+
+    for _ in tqdm.tqdm(range(n_repeats), total=n_repeats, desc=f"simulating {user}"): 
+        prediction = model.predict(sim_params, games)
+        simulated_data.extend([
+                {
+                    "name": f"game_{user}_c{condition}_g{game}",
+                    "p": get_conditions(type_)[condition],
+                    "boards": prediction.boards.isel(conditions=condition, games=game).values,
+                    "oracle": prediction.oracles.isel(conditions=condition, games=game, trials=0).values,
+                    "tuplepath": prediction.paths.isel(conditions=condition, games=game).values,
+                    "path": [f'{a},{b}' for a, b in prediction.paths.isel(conditions=condition, games=game).values],
+                    "actions": prediction.choose_left.isel(conditions=condition, games=game).astype(bool).values,
+                    "is_transition": prediction.is_transition.isel(conditions=condition, games=game).astype(bool).values,
+                    "trials": [{"rt": 0} for _ in range(7)],
+                }
+                # do this for the first 5 games
+                for condition in range(5) for game in range(5)
+        ])
+
+    simulated_games = format_games(simulated_data)
+    multistart = MultiStart(model, simulated_games, {k:5 for k in flexible_params.keys()}, use_grid = False, n=100)
+    multistart.sweep()
+
+    filedir = f"../data/simulated_variable_inv_temp/{type_}_{model.name}"
     os.makedirs(filedir, exist_ok=True)
 
     with open(f"{filedir}/{sim_user}_sim.json", "w") as f:
