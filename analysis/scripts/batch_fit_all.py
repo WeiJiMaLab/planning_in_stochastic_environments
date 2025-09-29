@@ -12,6 +12,7 @@ import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--type", default="R")
+parser.add_argument("--data_folder", default="raw")
 args = parser.parse_args()
 type_ = args.type
 
@@ -24,9 +25,11 @@ except TypeError:
     jobid = 1
 
 # load data and get player
-datafile = f"../data/raw/data_{type_}.json"
+data_folder = args.data_folder
+datafile = f"../data/{data_folder}/data_{type_}.json"
 with open(datafile, 'r') as f:
     data = json.load(f)
+
 
 
 if jobid >= len(list(data.keys())): 
@@ -48,12 +51,6 @@ param_specs = [
         "conditional_filter_params": False,
         "multistart_n": 100,
     }, 
-    {
-        "name": "variable_depth_variable_lapse",
-        "params": {"inv_temp": 5, **{f"condition_lapse_{i}": 5 for i in range(5)}},
-        "conditional_filter_params": True,
-        "multistart_n": 100,
-    },
 ]
 
 filter_fns = [filter_depth, filter_rank, filter_value]
@@ -71,7 +68,7 @@ with warnings.catch_warnings():
 
                 model = Model(filter_fn, value_fn, variant=type_, 
                             conditional_filter_params=param_spec["conditional_filter_params"])
-                filedir = f"../data/{param_spec['name']}/{type_}_{model.name}"
+                filedir = f"../fitted/{data_folder}/{param_spec['name']}/{type_}_{model.name}"
                 print(f"Saving to \t{filedir}/{player}.json")
                 
                 multistart = MultiStart(model, games, param_spec["params"], 

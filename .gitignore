@@ -12,6 +12,7 @@ firebase-debug.log.*
 
 # Data and other experimental results
 */data/*
+*/fitted/*
 */*/temp/*
 */*/fit/*
 
