@@ -1,4 +1,5 @@
 analysis/demos/figures
+*tar.gz
 
 # Firebase
 .firebase/
@@ -11,6 +12,7 @@ firebase-debug.log.*
 *.DS_Store
 
 # Data and other experimental results
+*/fitted/*
 */data/*
 */*/temp/*
 */*/fit/*

@@ -10,7 +10,7 @@
 #SBATCH -e log/%j_%a.error 
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=hl3976@nyu.edu  
-#SBATCH --job-name=TH-Final-Fit
+#SBATCH --job-name=sim-model-recovery
 
 # activate the venv
 source /scratch/hl3976/ma_lab/.venv/bin/activate
