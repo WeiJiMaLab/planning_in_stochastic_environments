@@ -138,7 +138,7 @@ def total_rt_analysis(folder="main", filter_fn="filter_depth", value_fn="value_p
     fig.savefig(f"figures/{folder}/empirical_first_rt.png", bbox_inches='tight', dpi=600)
 
 
-def model_comparison_analysis(folder="main",
+def model_comparison_analysis(folders=["main"],
                           filter_fn="filter_depth", 
                           value_fn="value_path",
                           types=["R", "V", "T"],
@@ -149,7 +149,7 @@ def model_comparison_analysis(folder="main",
     
     # Create figure with two panels per condition type
     fig, axes = plt.subplots(len(types), 2, 
-                          figsize=(8, 6 * len(types)),
+                          figsize=(8, 12 * len(types)),
                           gridspec_kw={'width_ratios': [0.6, 0.4], 'wspace': 0.05},
                           constrained_layout=True)
     
@@ -157,9 +157,9 @@ def model_comparison_analysis(folder="main",
 
     for i, type_ in enumerate(types):
         # Initialize analyzer
-        analyzer = Analyzer(f"{folder}.{filter_fn}.{value_fn}",
+        analyzer = Analyzer(f"{folders[0]}.{filter_fn}.{value_fn}",
                         *get_filter_and_value_functions(type_),
-                        type_, colors=get_colormap(type_), folders=[folder])
+                        type_, colors=get_colormap(type_), folders=folders)
 
         # Main panel showing full range
         ax_main = axes[i][0]
@@ -180,7 +180,7 @@ def model_comparison_analysis(folder="main",
 
     # Save figure
     save_name = f"model_comparison_{kind}" if save_name is None else save_name
-    save_dir = f"figures/{folder}/{filter_fn}.{value_fn}"
+    save_dir = f"figures/{folders[0]}/{filter_fn}.{value_fn}"
     os.makedirs(save_dir, exist_ok=True)
     fig.savefig(f"{save_dir}/{save_name}.png", bbox_inches='tight', dpi=600)
 
@@ -286,82 +286,87 @@ def model_checking_analysis(folder="main",
 import glob
 if __name__ == "__main__":
     helvetica_regular, helvetica_bold = set_helvetica_style()
-    folder = "main"
+    folders = ["sim_variable_depth/variable_filter", "sim_variable_depth/variable_temp"]
+    os.makedirs(f"figures/{folders[0]}", exist_ok=True)
+    model_comparison_analysis(folders, "filter_depth", "value_path")
 
-    os.makedirs("figures/main", exist_ok=True)
-    total_rt_analysis("main", "filter_depth", "value_path")
+    folders = ["sim_variable_inv_temp/variable_temp", "sim_variable_inv_temp/variable_filter"]
+    os.makedirs(f"figures/{folders[0]}", exist_ok=True)
+    model_comparison_analysis(folders, "filter_depth", "value_path")
 
-    model_comparison_analysis("main", "filter_depth", "value_path")
-    model_comparison_analysis("main", "filter_depth", "value_levelmean")
-
-    model_checking_analysis("main", "filter_depth", "value_path")
-    model_checking_analysis("main", "filter_depth", "value_EV", types = ["R", "T"], plot_fns = ["greedydiff"], save_analysis = False)
-    model_checking_analysis("main", "filter_depth", "value_max")
-    model_checking_analysis("main", "filter_depth", "value_sum")
-    model_checking_analysis("main", "filter_depth", "value_levelmean")
+    # total_rt_analysis(folder, "filter_depth", "value_path")
 
 
-    df_logs = []
-    for filename in glob.glob(f"figures/{folder}/*/depth_log.csv"):
-        df_logs.append(pd.read_csv(filename))
+    # model_comparison_analysis(folder, "filter_depth", "value_levelmean")
+
+    # model_checking_analysis(folder, "filter_depth", "value_path")
+    # model_checking_analysis(folder, "filter_depth", "value_EV", types = ["R", "T"], plot_fns = ["greedydiff"], save_analysis = False)
+    # model_checking_analysis(folder, "filter_depth", "value_max")
+    # model_checking_analysis(folder, "filter_depth", "value_sum")
+    # model_checking_analysis(folder, "filter_depth", "value_levelmean")
+
+
+    # df_logs = []
+    # for filename in glob.glob(f"figures/{folder}/*/depth_log.csv"):
+    #     df_logs.append(pd.read_csv(filename))
     
-    df_logs = pd.concat(df_logs)
-    df_logs = df_logs.set_index(["Model Name", "Condition", "Variable", "Formula / Status"])
+    # df_logs = pd.concat(df_logs)
+    # df_logs = df_logs.set_index(["Model Name", "Condition", "Variable", "Formula / Status"])
 
-    df_logs.to_latex(f"figures/depth_log.tex", index=True)
-    # Replace \cline with \cmidrule(lr) in depth_log.tex
-    with open('figures/depth_log.tex', 'r') as f:
-        content = f.read()
-    content = content.replace('\\cline', '\\cmidrule(lr)')
-    with open('figures/depth_log.tex', 'w') as f:
-        f.write(content)
+    # df_logs.to_latex(f"figures/depth_log.tex", index=True)
+    # # Replace \cline with \cmidrule(lr) in depth_log.tex
+    # with open('figures/depth_log.tex', 'r') as f:
+    #     content = f.read()
+    # content = content.replace('\\cline', '\\cmidrule(lr)')
+    # with open('figures/depth_log.tex', 'w') as f:
+    #     f.write(content)
 
 
-    df_results = []
-    for filename in sorted(glob.glob(f"figures/{folder}/*/depth_result.csv")):
-        df_results.append(pd.read_csv(filename))
-    df_results = pd.concat(df_results)
-    df_results = df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
+    # df_results = []
+    # for filename in sorted(glob.glob(f"figures/{folder}/*/depth_result.csv")):
+    #     df_results.append(pd.read_csv(filename))
+    # df_results = pd.concat(df_results)
+    # df_results = df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
     
-    # Write to tex file with pgf format
-    with open(f"figures/depth_result.tex", 'w') as f:
-        for idx, row in df_results.iterrows():
-            model, stoch, var = idx
-            key = f"{model}.{stoch}.{var}"
-            beta = row['beta']
-            dof = row['dof']
-            tstat = row['tstat']
-            pval = row['pval']
+    # # Write to tex file with pgf format
+    # with open(f"figures/depth_result.tex", 'w') as f:
+    #     for idx, row in df_results.iterrows():
+    #         model, stoch, var = idx
+    #         key = f"{model}.{stoch}.{var}"
+    #         beta = row['beta']
+    #         dof = row['dof']
+    #         tstat = row['tstat']
+    #         pval = row['pval']
             
-            f.write(f"\\pgfkeyssetvalue{{{key}}}{{LMM, $\\beta = {beta:.2f}$, ")
-            f.write(f"$t_{{{int(dof)}}} = {tstat:.1f}$, ")
-            f.write(f"${report_p_value(pval)}$}}\n")
+    #         f.write(f"\\pgfkeyssetvalue{{{key}}}{{LMM, $\\beta = {beta:.2f}$, ")
+    #         f.write(f"$t_{{{int(dof)}}} = {tstat:.1f}$, ")
+    #         f.write(f"${report_p_value(pval)}$}}\n")
 
-    glmm_df_results = []
-    for filename in sorted(glob.glob(f"figures/{folder}/*/glmm_result.csv")):
-        glmm_df_results.append(pd.read_csv(filename))
-    glmm_df_results = pd.concat(glmm_df_results)
-    glmm_df_results = glmm_df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
+    # glmm_df_results = []
+    # for filename in sorted(glob.glob(f"figures/{folder}/*/glmm_result.csv")):
+    #     glmm_df_results.append(pd.read_csv(filename))
+    # glmm_df_results = pd.concat(glmm_df_results)
+    # glmm_df_results = glmm_df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
 
-    with open(f"figures/depth_result.tex", 'a') as f:
-        for idx, row in glmm_df_results.iterrows():
-            model, stoch, var = idx
-            key = f"{model}.{stoch}.{var}"
-            beta_main = row['beta_main']
-            chi2_main = row['chi2_main']
-            pval_main = row['pval_main']
+    # with open(f"figures/depth_result.tex", 'a') as f:
+    #     for idx, row in glmm_df_results.iterrows():
+    #         model, stoch, var = idx
+    #         key = f"{model}.{stoch}.{var}"
+    #         beta_main = row['beta_main']
+    #         chi2_main = row['chi2_main']
+    #         pval_main = row['pval_main']
 
-            beta_inter = row['beta_inter']
-            chi2_inter = row['chi2_inter']
-            pval_inter = row['pval_inter']
+    #         beta_inter = row['beta_inter']
+    #         chi2_inter = row['chi2_inter']
+    #         pval_inter = row['pval_inter']
 
-            f.write(f"\\pgfkeyssetvalue{{{key}}}{{GLMM, main effect $\\beta = {beta_main:.2f}$, ")
-            f.write(f"$\chi^2(1) = {chi2_main:.1f}$, ")
-            f.write(f"${report_p_value(pval_main)}$}}\n")
+    #         f.write(f"\\pgfkeyssetvalue{{{key}}}{{GLMM, main effect $\\beta = {beta_main:.2f}$, ")
+    #         f.write(f"$\chi^2(1) = {chi2_main:.1f}$, ")
+    #         f.write(f"${report_p_value(pval_main)}$}}\n")
 
-            f.write(f"\\pgfkeyssetvalue{{{key + ".interaction"}}}{{GLMM, interaction $\\beta = {beta_inter:.2f}$, ")
-            f.write(f"$\chi^2(1) = {chi2_inter:.1f}$, ")
-            f.write(f"${report_p_value(pval_inter)}$}}\n")
+    #         f.write(f"\\pgfkeyssetvalue{{{key + ".interaction"}}}{{GLMM, interaction $\\beta = {beta_inter:.2f}$, ")
+    #         f.write(f"$\chi^2(1) = {chi2_inter:.1f}$, ")
+    #         f.write(f"${report_p_value(pval_inter)}$}}\n")
 
 
             

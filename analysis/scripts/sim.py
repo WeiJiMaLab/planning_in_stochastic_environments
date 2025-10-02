@@ -70,7 +70,7 @@ for user in users:
 
     out = {"data": simulated_data}
 
-    filedir = f"../data/simulated_variable_depth_fixed_inv_temp/{type_}_{model.name}"
+    filedir = f"../data/simulated_filteradapt/{type_}_{model.name}"
     os.makedirs(filedir, exist_ok=True)
 
     with open(f"{filedir}/{sim_user}_data.json", "w") as f:
@@ -112,7 +112,7 @@ for user in users:
     
     out = {"data": simulated_data}
 
-    filedir = f"../data/simulated_fixed_depth_variable_inv_temp/{type_}_{model.name}"
+    filedir = f"../data/simulated_policycomp/{type_}_{model.name}"
     os.makedirs(filedir, exist_ok=True)
 
     with open(f"{filedir}/{sim_user}_data.json", "w") as f:

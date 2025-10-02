@@ -25,7 +25,7 @@ def load_fit(variant, filter_fn, value_fn, folder = "fit", verbose = False):
     AssertionError: If the number of loaded fits is not equal to 100.
     '''
     model = Model(filter_fn, value_fn, variant = variant)
-    filedir = f"../data/{folder}/{variant}_{model.name}"
+    filedir = f"../fitted/{folder}/{variant}_{model.name}"
     
     fit = defaultdict(lambda: {})
     files = [f for f in sorted(os.listdir(filedir)) if "user" in f]
@@ -163,8 +163,6 @@ def segment_by_condition(y, n_bins = None):
         
     return condition_y
 
-
-    
 def summary_statistics(x, y, n_bins=None):
     """
     Calculate summary statistics for given data.
