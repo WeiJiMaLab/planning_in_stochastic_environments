@@ -3,17 +3,17 @@
 # Example of running python script with a job array
 #SBATCH -J model_fit
 #SBATCH -c 1 # one CPU core per task
-#SBATCH -t 17:00:00
-#SBATCH --mem=4GB
+#SBATCH -t 2-00:00:00
+#SBATCH --mem=6GB
 #SBATCH --array=0-99
 #SBATCH -o log/%j_%a.out
 #SBATCH -e log/%j_%a.error 
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=hl3976@nyu.edu  
-#SBATCH --job-name=PSE-Fit
+#SBATCH --job-name=Fitter
 
 # activate the venv
 source /scratch/hl3976/ma_lab/.venv/bin/activate
 
 # run the python script
-python batch_fit_all.py --type=$1
+python batch_fit_all.py --type=$1 --data_folder=$2

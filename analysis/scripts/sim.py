@@ -68,18 +68,13 @@ for user in users:
                 for condition in range(5) for game in range(5)
         ])
 
-    simulated_games = format_games(simulated_data)
-    multistart = MultiStart(model, simulated_games, {k:5 for k in flexible_params.keys()}, use_grid = False, n=100)
-    multistart.sweep()
+    out = {"data": simulated_data}
 
-    filedir = f"../data/simulated/{type_}_{model.name}"
+    filedir = f"../data/simulated_variable_depth_fixed_inv_temp/{type_}_{model.name}"
     os.makedirs(filedir, exist_ok=True)
 
-    with open(f"{filedir}/{sim_user}_sim.json", "w") as f:
-        json.dump(sim_params, f, cls=NpEncoder)
-
-    with open(f"{filedir}/{sim_user}_fit.json", "w") as f:
-        json.dump(multistart.best, f, cls=NpEncoder)
+    with open(f"{filedir}/{sim_user}_data.json", "w") as f:
+        json.dump(out, f, cls=NpEncoder)
 
 # this time, do conditional - inverse temp
 for user in users:
@@ -114,19 +109,17 @@ for user in users:
                 # do this for the first 5 games
                 for condition in range(5) for game in range(5)
         ])
+    
+    out = {"data": simulated_data}
 
-    simulated_games = format_games(simulated_data)
-    multistart = MultiStart(model, simulated_games, {k:5 for k in flexible_params.keys()}, use_grid = False, n=100)
-    multistart.sweep()
-
-    filedir = f"../data/simulated_variable_inv_temp/{type_}_{model.name}"
+    filedir = f"../data/simulated_fixed_depth_variable_inv_temp/{type_}_{model.name}"
     os.makedirs(filedir, exist_ok=True)
 
-    with open(f"{filedir}/{sim_user}_sim.json", "w") as f:
-        json.dump(sim_params, f, cls=NpEncoder)
+    with open(f"{filedir}/{sim_user}_data.json", "w") as f:
+        json.dump(out, f, cls=NpEncoder)
 
-    with open(f"{filedir}/{sim_user}_fit.json", "w") as f:
-        json.dump(multistart.best, f, cls=NpEncoder)
+
+
     
     
     
