@@ -21,10 +21,10 @@ def merge_simulation_files(model_type):
                 params = json.load(f)
                 all_params[f"user{user}"] = params
         
-        with open(f"data_{folder}.json", "w") as f:
+        with open(f"data_{folder.split('.')[0].split('/')[-1]}.json", "w") as f:
             json.dump(all_data, f)
         
-        with open(f"params_{folder}.json", "w") as f:
+        with open(f"params_{folder.split('.')[0].split('/')[-1]}.json", "w") as f:
             json.dump(all_params, f)
 
 if __name__ == "__main__":
