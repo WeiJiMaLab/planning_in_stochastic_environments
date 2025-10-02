@@ -38,13 +38,13 @@ print("Player\t", player)
 
 param_specs = [
     {
-        "name": "variable_depth", 
+        "name": "filteradapt", 
         "params": {"inv_temp": 5, "lapse": 5},
         "conditional_filter_params": True,
         "multistart_n": 100,
     },
     {
-        "name": "variable_temp",
+        "name": "policycomp",
         "params": {"lapse": 5, **{f"condition_inv_temp_{i}": 5 for i in range(5)}},
         "conditional_filter_params": False,
         "multistart_n": 100,

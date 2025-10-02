@@ -47,7 +47,7 @@ def simulate_model(user, model_family="filteradapt"):
         ])
 
     # Save results
-    filedir = f"../data/simulated_{model_family}/{type_}/{model.name}"
+    filedir = f"../data/simulated_{model_family}/{type_}/"
     os.makedirs(filedir, exist_ok=True)
     with open(f"{filedir}/{sim_user}_data.json", "w") as f:
         json.dump({"data": simulated_data}, f, cls=NpEncoder)
