@@ -30,8 +30,6 @@ datafile = f"../data/{data_folder}/data_{type_}.json"
 with open(datafile, 'r') as f:
     data = json.load(f)
 
-
-
 if jobid >= len(list(data.keys())): 
     print("Job ID is greater than the number of players. Exiting.")
     sys.exit(1)
