@@ -2,6 +2,7 @@ import sys, os
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import glob
 currentdir = os.getcwd()
 parentdir = os.path.dirname(currentdir) + "/src/"
 sys.path.insert(0, parentdir) 
@@ -11,6 +12,7 @@ from modelchecking import trialwise_rewards, trialwise_greedydiff, trialwise_cho
 from analysis import Analyzer, lmm, glmm
 from plots import set_helvetica_style
 from utils import colormaps, report_p_value, strsimplify, get_conditions, alphabet
+
 
 def get_colormap(type_):
     return {"R": colormaps["arctic"], "T": colormaps["berry"], "V": colormaps["grass"]}[type_]
@@ -33,7 +35,6 @@ def get_filter_and_value_functions(type_):
     if type_ == "R" or type_ == "T": 
         compare_value_fns.append(["EV", value_EV])
     return compare_filter_fns, compare_value_fns
-
 
 def total_rt_analysis(folder="main", filter_fn="filter_depth", value_fn="value_path", plot_fns=["greedydiff", "rewards", "depth"]):
     # Plot total RT analysis
@@ -283,7 +284,7 @@ def model_checking_analysis(folder="main",
     fig.savefig(f"{save_dir}/{save_name}.png", bbox_inches='tight', dpi=600)
 
 
-import glob
+
 if __name__ == "__main__":
     helvetica_regular, helvetica_bold = set_helvetica_style()
     folders = ["sim_variable_depth/variable_filter", "sim_variable_depth/variable_temp"]
