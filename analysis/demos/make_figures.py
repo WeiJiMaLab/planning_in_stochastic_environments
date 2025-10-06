@@ -11,7 +11,7 @@ from modeling import filter_depth, filter_rank, filter_value, value_path, value_
 from modelchecking import trialwise_rewards, trialwise_greedydiff, trialwise_chooseleft
 from analysis import Analyzer, lmm, glmm
 from plots import set_helvetica_style
-from utils import colormaps, report_p_value, strsimplify, get_conditions, alphabet
+from utils import colormaps, report_p_value, strsimplify, get_stochasticity_levels, alphabet
 
 
 def get_colormap(type_):
@@ -100,7 +100,7 @@ def total_rt_analysis(folder="main", filter_fn="filter_depth", value_fn="value_p
                 df_reward, _ = analyzer.plot_checking_condition(trialwise_rewards, show_model=False, ax=ax)
                 ax.set(ylabel="Points Earned", xlabel="Stochasticity Level (%)",
                       yticks=[4.8, 5.2, 5.6, 6, 6.4], 
-                      xticks=np.array(get_conditions(type_)) * 100,
+                      xticks=np.array(get_stochasticity_levels(type_)) * 100,
                       xticklabels=[strsimplify(x) for x in ax.get_xticks()],
                       yticklabels=[strsimplify(y) for y in ax.get_yticks()])
                 
@@ -229,7 +229,7 @@ def model_checking_analysis(folder="main",
                 ax.set(ylabel="Points Earned",
                       xlabel="Stochasticity Level (%)",
                       yticks=[4.8, 5.2, 5.6, 6, 6.4],
-                      xticks=np.array(get_conditions(type_)) * 100)
+                      xticks=np.array(get_stochasticity_levels(type_)) * 100)
                 ax.set_xticklabels([strsimplify(x) for x in ax.get_xticks()])
                 ax.set_yticklabels([strsimplify(y) for y in ax.get_yticks()])
 

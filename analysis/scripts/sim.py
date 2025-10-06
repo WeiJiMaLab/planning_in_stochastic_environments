@@ -8,7 +8,7 @@ currentdir = os.getcwd()
 parentdir = os.path.dirname(currentdir) + "/src/"
 sys.path.insert(0, parentdir)
 from modeling import Model, filter_depth, value_path
-from utils import NpEncoder, format_games, get_conditions
+from utils import NpEncoder, format_games, get_stochasticity_levels
 
 def simulate_model(user, model_family="filteradapt"):
     """Run simulation for a single user with specified model type"""
@@ -17,7 +17,7 @@ def simulate_model(user, model_family="filteradapt"):
     
     # Set parameters based on model type
     if model_family == "filteradapt":
-        default_params = {"model": model.name, "filter_params": {p: np.random.choice(8) for p in get_conditions(type_)}}
+        default_params = {"model": model.name, "filter_params": {p: np.random.choice(8) for p in get_stochasticity_levels(type_)}}
         flexible_params = {"lapse": np.random.uniform(0, 1), "inv_temp": np.random.uniform(-4, 4)}
     else:  # policycomp
         default_params = {"model": model.name, "filter_params": {"global_depth": np.random.choice(8)}}
@@ -34,7 +34,7 @@ def simulate_model(user, model_family="filteradapt"):
         simulated_data.extend([
             {
                 "name": f"game_{user}_c{condition}_g{game}",
-                "p": get_conditions(type_)[condition],
+                "p": get_stochasticity_levels(type_)[condition],
                 "boards": prediction.boards.isel(conditions=condition, games=game).values,
                 "oracle": prediction.oracles.isel(conditions=condition, games=game, trials=0).values,
                 "tuplepath": prediction.paths.isel(conditions=condition, games=game).values,

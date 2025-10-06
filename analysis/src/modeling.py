@@ -1,6 +1,5 @@
 from collections import defaultdict
 import numpy as np 
-from helper import softmax, sigmoid, preprocess_data, make_pov_array, argmax_random_tiebreaker
 from scipy.optimize import minimize
 import tqdm
 from prodict import Prodict
@@ -95,7 +94,7 @@ class Model():
         self.value_fn = value_fn
         self.name = self.value_fn.__name__  + "." + self.filter_fn.__name__ 
         self.variant = variant
-        self.default_params = {p:p for p in get_conditions(self.variant)}
+        self.default_params = {p:p for p in get_stochasticity_levels(self.variant)}
         self.default_bounds = {
                 "inv_temp": (-5, 5),
                 "condition_inv_temp_0": (-5, 5),
@@ -110,7 +109,7 @@ class Model():
                 "condition_lapse_3": (0, 1),
                 "condition_lapse_4": (0, 1),
         }
-        self.default_bounds.update({p:(0, 1) for p in get_conditions(self.variant)})
+        self.default_bounds.update({p:(0, 1) for p in get_stochasticity_levels(self.variant)})
 
         # if set to false, we will only fit a single filter parameter for each condition, 
         # default is TRUE
@@ -233,7 +232,7 @@ class Model():
             inv_temp = params["inv_temp"]
         elif "condition_inv_temp_0" in params.keys():
             # using conditional inverse temperatures
-            inv_temp = xr.DataArray([params[f"condition_inv_temp_{i}"] for i in range(len(get_conditions(self.variant)))], dims="conditions")
+            inv_temp = xr.DataArray([params[f"condition_inv_temp_{i}"] for i in range(len(get_stochasticity_levels(self.variant)))], dims="conditions")
         else:
             inv_temp = 0
         
@@ -241,7 +240,7 @@ class Model():
             lapse = params["lapse"]
         elif "condition_lapse_0" in params.keys():
             # using conditional lapse rates
-            lapse = xr.DataArray([params[f"condition_lapse_{i}"] for i in range(len(get_conditions(self.variant)))], dims="conditions")
+            lapse = xr.DataArray([params[f"condition_lapse_{i}"] for i in range(len(get_stochasticity_levels(self.variant)))], dims="conditions")
         else:
             lapse = 0
         

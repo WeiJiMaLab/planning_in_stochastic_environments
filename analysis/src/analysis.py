@@ -154,7 +154,7 @@ class Analyzer():
         self.variant = variant
         self.data = get_data(variant)
         self.baseline_name = baseline_name
-        self.conditions = get_conditions(self.variant)
+        self.conditions = get_stochasticity_levels(self.variant)
         self.folders = folders
 
         self.model_data = defaultdict()
@@ -242,7 +242,7 @@ class Analyzer():
 
         # Handle global depth parameter
         if "global_depth" in params:
-            for c in get_conditions(self.variant):
+            for c in get_stochasticity_levels(self.variant):
                 df[c] = df["global_depth"]
             df = df.drop(columns=["global_depth"])
             
@@ -250,10 +250,10 @@ class Analyzer():
         if "condition_lapse_0" in df.columns:
             if verbose:
                 print("\t[Conditional Lapse] found conditional lapse, calculating effective depth")
-            for i, c in enumerate(get_conditions(self.variant)):
+            for i, c in enumerate(get_stochasticity_levels(self.variant)):
                 lapse = df[f"condition_lapse_{i}"]
                 df[c] = df[c] * (1 - lapse)
-            lapse_cols = [f"condition_lapse_{i}" for i in range(len(get_conditions(self.variant)))]
+            lapse_cols = [f"condition_lapse_{i}" for i in range(len(get_stochasticity_levels(self.variant)))]
             df = df.drop(columns=lapse_cols)
 
         return df, fit
