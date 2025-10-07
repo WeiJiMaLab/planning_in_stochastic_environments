@@ -70,9 +70,10 @@ def get_data(variant, data_folder = "raw"):
     for key in data.keys(): 
         # filter out practice games
         games = format_games(data[key]["data"])
-
-        # make sure there are 150 games
-        assert len(games) == 150
+        
+        if data_folder == "raw":
+            # make sure there are 150 games
+            assert len(games) == 150, f"Number of games is not 150 for {key}"
 
         # update the data
         data[key] = games

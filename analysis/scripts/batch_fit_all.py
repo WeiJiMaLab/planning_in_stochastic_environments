@@ -13,8 +13,7 @@ import json
 def process_player(player, data, type_, n_starts): 
     effort_versions, filter_fns, value_fns = get_effort_filter_value_options(type_)
     games = data[player]
-    assert len(games) == 150, "Number of games is not 150."
-
+    
     for effort_version in effort_versions: 
         if effort_version == "filter_adapt":
             param_spec = {"params": {"lapse": True, "inv_temp": True}}
