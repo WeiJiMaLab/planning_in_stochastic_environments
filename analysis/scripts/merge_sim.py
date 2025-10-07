@@ -29,5 +29,5 @@ def merge_simulation_files(model_type):
 
 if __name__ == "__main__":
     # Merge files for both model types
-    merge_simulation_files("filteradapt")
-    merge_simulation_files("policycomp")
+    merge_simulation_files("filter_adapt")
+    merge_simulation_files("policy_compress")

@@ -10,7 +10,7 @@ from modeling import Model, MultiStart, get_effort_filter_value_options
 import json
 
 # process a single player's data for all model combinations
-def process_player(player, data, type_): 
+def process_player(player, data, type_, n_starts): 
     effort_versions, filter_fns, value_fns = get_effort_filter_value_options(type_)
     games = data[player]
     assert len(games) == 150, "Number of games is not 150."
@@ -25,9 +25,9 @@ def process_player(player, data, type_):
             for value_fn in value_fns: 
                 model = Model(effort_version, filter_fn, value_fn, type_)
 
-                print(f"Fitting {model.name} for player {player}")
+                print(f"Fitting {model.name} for {player} using {n_starts} starts")
 
-                multistart = MultiStart(model, games, param_spec["params"], use_grid=False, n=1)
+                multistart = MultiStart(model, games, param_spec["params"], use_grid=False, n=n_starts)
                 multistart.sweep()
 
                 filedir = f"../fitted/{args.data_folder}/{type_}_{model.name}"
@@ -42,8 +42,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--type", default="R")
     parser.add_argument("--data_folder", default="raw")
+    parser.add_argument("--n_starts", default=100)
     args = parser.parse_args()
     type_ = args.type
+    n_starts = int(args.n_starts)
     jobid = get_jobid()
 
     data = get_data(type_, data_folder=args.data_folder)
@@ -56,4 +58,4 @@ if __name__ == "__main__":
             warnings.filterwarnings("ignore", category=RuntimeWarning)
             player = list(data.keys())[jobid]
             print(f"Processing job ID {jobid} for player {player} for type {type_}")
-            process_player(player, data, type_)
+            process_player(player, data, type_, n_starts)
