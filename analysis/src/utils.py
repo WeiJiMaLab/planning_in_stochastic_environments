@@ -5,6 +5,8 @@ import xarray as xr
 from collections import defaultdict
 from prodict import Prodict
 import matplotlib.pyplot as plt
+import os
+import warnings
 
 ########################################################
 # Helper functions
@@ -15,7 +17,6 @@ class mapdict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
-
 
 def alphabet(n):
     """Return the nth letter of the alphabet (0-indexed)"""
@@ -61,10 +62,21 @@ def get_stochasticity_levels(variant):
     else: 
         return [0, 0.25, 0.5, 0.75, 1]
 
-def get_data(variant):
-    datafile = "../data/raw/data_%s.json"%(variant)
+def get_data(variant, data_folder = "raw"):
+    datafile = f"../data/{data_folder}/data_{variant}.json"
     with open(datafile, 'r') as f:
         data = json.load(f)
+
+    for key in data.keys(): 
+        # filter out practice games
+        games = format_games(data[key]["data"])
+
+        # make sure there are 150 games
+        assert len(games) == 150
+
+        # update the data
+        data[key] = games
+
     return data
 
 def format_games(games): 
@@ -99,6 +111,7 @@ def preprocess_data(games: list):
         "is_transition": xr.DataArray([is_transition[p] for p in ps], dims = ["conditions", "games", "trials"]).astype(int),
         "reaction_time": xr.DataArray([rt[p] for p in ps], dims = ["conditions", "games", "trials"]).astype(float) + 1e-10
     }
+    game_data["pov_array"] = make_pov_array(game_data["boards"], game_data["paths"])
     
     for key in game_data.keys(): 
         game_data[key]["conditions"] = ps
@@ -203,3 +216,13 @@ class NpEncoder(json.JSONEncoder):
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         return super(NpEncoder, self).default(obj)
+
+def get_jobid():
+    # detect if running in SLURM environment
+    try:
+        jobid = int(os.getenv('SLURM_ARRAY_TASK_ID'))
+        print("Job ID\t", jobid)
+    except TypeError:
+        warnings.warn("Not running in SLURM environment. Setting job ID to 1.")
+        jobid = 1
+    return jobid

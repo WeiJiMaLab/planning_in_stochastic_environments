@@ -9,35 +9,35 @@ import itertools
 
 class MultiStart(): 
     """
-    A class to perform multi-start optimization for a given model over a set of games.
-    Attributes:
-    -----------
-    model : object
-        The model to be optimized.
-    games : list
-        A list of games to be used for fitting the model.
-    sweeps : list
-        A list to store the results of each parameter sweep.
-    best : dict or None
-        The best result obtained from the sweeps.
-    best_nll : float
-        The best negative log-likelihood obtained from the sweeps.
-    param_list : list
-        A list of dictionaries containing parameter combinations to be tested.
-    Methods:
-    --------
-    __init__(model, games, grid_params={}):
-        Initializes the MultiStart object with the given model, games, and grid parameters.
-    sweep():
-        Performs a parameter sweep over the grid parameters and updates the best result.
+        A class to perform multi-start optimization for a given model over a set of games.
+        Attributes:
+        -----------
+        model : object
+            The model to be optimized.
+        games : list
+            A list of games to be used for fitting the model.
+        sweeps : list
+            A list to store the results of each parameter sweep.
+        best : dict or None
+            The best result obtained from the sweeps.
+        best_nll : float
+            The best negative log-likelihood obtained from the sweeps.
+        param_list : list
+            A list of dictionaries containing parameter combinations to be tested.
+        Methods:
+        --------
+        __init__(model, games, grid_params={}):
+            Initializes the MultiStart object with the given model, games, and grid parameters.
+        sweep():
+            Performs a parameter sweep over the grid parameters and updates the best result.
     """
-    def __init__(self, model, games, params = {}, use_grid = True, n = 100):
+    def __init__(self, model, games, params = {}, use_grid = False, n = 100):
         self.model = model
         self.games = games
         self.sweeps = []
         self.best = None
         self.best_nll = np.inf
-        
+
         param_ranges = {}
         if use_grid:
             # Generate a grid of parameter sets
@@ -64,36 +64,10 @@ class MultiStart():
                 self.best_nll = res["nll"]
 
 class Model(): 
-    """
-    Model class for fitting and predicting game behavior based on specified filter and value functions.
-    Attributes:
-    filter_fn : function
-        The filter function to be applied to the point of view array.
-    value_fn : function
-        The value function to be used in the model.
-    name : str
-        The name of the model, derived from the value and filter function names.
-    variant : str
-        The variant of the model.
-    default_params : dict
-        Default parameters for the model, including "inv_temp" and "lapse".
-    default_bounds : dict
-        Default bounds for the parameters, including "inv_temp", "lapse", and various conditions.
-    Methods:
-    __init__(filter_fn, value_fn, variant)
-        Initializes the Model with the given filter and value functions, and variant.
-    fit(fittable_params: dict, games: list) -> dict
-    negative_log_likelihood(params_values, params_names, filter_pov_array, choose_left) -> float
-        Computes the negative log likelihood for the given parameters and data.
-    max_likelihood_estimation(params: dict, filter_pov_array, choose_left) -> tuple
-        Performs maximum likelihood estimation for the given parameters and data.
-    predict(fitted_dict: dict, games: list) -> Prodict
-    """
-    def __init__(self, filter_fn, value_fn, variant, conditional_filter_params = True): 
-        self.filter_fn = filter_fn
-        self.value_fn = value_fn
-        self.name = self.value_fn.__name__  + "." + self.filter_fn.__name__ 
-        self.variant = variant
+    def __init__(self, effort_version: str, filter_fn: callable, value_fn: callable, variant: str):
+        assert effort_version in ["filter_adapt", "policy_compress"], "Invalid effort version"
+        self.effort_version, self.filter_fn, self.value_fn, self.variant = effort_version, filter_fn, value_fn, variant
+        self.name = self.effort_version + "." + self.value_fn.__name__  + "." + self.filter_fn.__name__ 
         self.default_params = {p:p for p in get_stochasticity_levels(self.variant)}
         self.default_bounds = {
                 "inv_temp": (-5, 5),
@@ -103,19 +77,10 @@ class Model():
                 "condition_inv_temp_3": (-5, 5),
                 "condition_inv_temp_4": (-5, 5),
                 "lapse": (0, 1),
-                "condition_lapse_0": (0, 1),
-                "condition_lapse_1": (0, 1),
-                "condition_lapse_2": (0, 1),
-                "condition_lapse_3": (0, 1),
-                "condition_lapse_4": (0, 1),
         }
         self.default_bounds.update({p:(0, 1) for p in get_stochasticity_levels(self.variant)})
 
-        # if set to false, we will only fit a single filter parameter for each condition, 
-        # default is TRUE
-        self.conditional_filter_params = conditional_filter_params
-
-    def fit(self, fittable_params:dict, games):
+    def fit(self, fittable_params : dict, games : list):
         '''
             Fits the model to the given set of games by finding the parameter values that minimize the negative log likelihood.
             Parameters:
@@ -132,6 +97,10 @@ class Model():
                 - The negative log likelihood (nll) of the fit.
                 - The model name.
                 - The filter parameters used in the model.
+            Raises:
+            -------
+            AssertionError
+                If the model name in fitted_dict does not match the model's name.
         '''
 
         #split the parameter values and the names
@@ -139,10 +108,9 @@ class Model():
 
         #we process the game by taking the "point of view" of the player
         game_data = preprocess_data(games)
-        pov_array = make_pov_array(game_data.boards, game_data.paths)
 
         #apply the filter function to the boards
-        filter_pov_array = self.filter_fn(pov_array)
+        filter_pov_array = self.filter_fn(game_data.pov_array)
 
         #minimize the negative log likelihood
         res = minimize(self.negative_log_likelihood, 
@@ -163,42 +131,17 @@ class Model():
         
         return fitted_params
 
-    def negative_log_likelihood(self, params_values, params_names, filter_pov_array, choose_left): 
+    def negative_log_likelihood(self, params_values:list, params_names:list, filter_pov_array:xr.DataArray, choose_left:xr.DataArray): 
         params = copy_and_update(self.default_params, dict(zip(params_names, params_values)))
         ml, _ = self.max_likelihood_estimation(params, filter_pov_array, choose_left)
         nll = -ml
         return nll.item()
 
-    def max_likelihood_estimation(self, params, filter_pov_array, choose_left): 
-        """
-            Perform maximum likelihood estimation for the given parameters and data.
-            Parameters:
-            -----------
-            params : dict
-                Dictionary containing model parameters, including:
-                - "inv_temp": Inverse temperature parameter for the sigmoid function.
-                - "lapse": Lapse rate parameter.
-            filter_pov_array : xarray.DataArray
-                Array containing the filtered point of view data.
-            choose_left : xarray.DataArray
-                Array indicating whether the left option was chosen (1) or not (0).
-            Returns:
-            --------
-            ml : xarray.DataArray
-                Maximum log-likelihood value across all filter parameters.
-            updated_params : dict
-                Updated parameters dictionary with the best filter parameters based on maximum likelihood estimation.
-            Notes:
-            ------
-            - The function uses a sigmoid function to calculate the probability of choosing the left option.
-            - The log-likelihood is computed for each trial and summed across games and trials.
-            - The maximum log-likelihood is determined, and the best filter parameters are selected using a random tie-breaking strategy.
-        """
+    def max_likelihood_estimation(self, params:dict, filter_pov_array:xr.DataArray, choose_left:xr.DataArray): 
         p_left = self.get_p_left(params, filter_pov_array)
-
         log_likelihood = choose_left * np.log(p_left) + (1 - choose_left) * np.log(1 - p_left)
         
-        if self.conditional_filter_params:
+        if self.effort_version == "filter_adapt":
             log_likelihood_player = log_likelihood.sum(["games", "trials"], keep_attrs = True)
             ml = log_likelihood_player.max("filter_params")
             mle = [argmax_random_tiebreaker(log_likelihood_player.sel(conditions = condition)) for condition in log_likelihood_player.conditions]
@@ -206,95 +149,84 @@ class Model():
             mle["conditions"] = log_likelihood_player.conditions
             return ml.sum(), copy_and_update(params, {"filter_params": dict(zip(mle.conditions.values, mle.values))})
         
-        else: 
+        elif self.effort_version == "policy_compress": 
             log_likelihood_player = log_likelihood.sum(["games", "trials", "conditions"], keep_attrs = True)
             ml = log_likelihood_player.max("filter_params")
             mle = argmax_random_tiebreaker(log_likelihood_player)
-            return ml.sum(), copy_and_update(params, {"filter_params": mle})
+            return ml.sum(), copy_and_update(params, {"filter_params": {"global": mle}})
+        
+        else: raise ValueError(f"Invalid effort version: {self.effort_version}")
 
-    def get_p_left(self, params, filter_pov_array):
+    def get_p_left(self, params:dict, filter_pov_array:xr.DataArray):
         """
-        Computes the probability of choosing the left option based on the given parameters and filtered point of view array.
-        Parameters:
-        -----------
-        params : dict
-            Dictionary containing model parameters, including:
-            - "inv_temp": Inverse temperature parameter for the sigmoid function.
-            - "condition_lapse_*": Lapse rate parameters for each condition.
-        filter_pov_array : xarray.DataArray
-            Array containing the filtered point of view data.
-        Returns:
-        --------
-        p_left : xarray.DataArray
-            Array containing the probability of choosing the left option for each condition.
+            Computes the probability of choosing the left option based on the given parameters and filtered point of view array.
+            Parameters:
+            -----------
+            params : dict
+                Dictionary containing model parameters, including:
+                - "inv_temp": Inverse temperature parameter for the sigmoid function.
+                - "condition_lapse_*": Lapse rate parameters for each condition.
+            filter_pov_array : xarray.DataArray
+                Array containing the filtered point of view data.
+            Returns:
+            --------
+            p_left : xarray.DataArray
+                Array containing the probability of choosing the left option for each condition.
         """
-        if "inv_temp" in params.keys(): 
+        lapse = params["lapse"]
+
+        if self.effort_version == "filter_adapt":
             inv_temp = params["inv_temp"]
-        elif "condition_inv_temp_0" in params.keys():
-            # using conditional inverse temperatures
-            inv_temp = xr.DataArray([params[f"condition_inv_temp_{i}"] for i in range(len(get_stochasticity_levels(self.variant)))], dims="conditions")
-        else:
-            inv_temp = 0
+        elif self.effort_version == "policy_compress":
+            inv_temp = xr.DataArray([params[f"condition_inv_temp_{i}"] for i in range(len(get_stochasticity_levels(self.variant)))], dims="conditions")        
+        else: raise ValueError(f"Invalid effort version: {self.effort_version}")
         
-        if "lapse" in params.keys():
-            lapse = params["lapse"]
-        elif "condition_lapse_0" in params.keys():
-            # using conditional lapse rates
-            lapse = xr.DataArray([params[f"condition_lapse_{i}"] for i in range(len(get_stochasticity_levels(self.variant)))], dims="conditions")
-        else:
-            lapse = 0
-        
-        # Compute the probability of choosing the left option using the sigmoid function
-        p_left = sigmoid(self.value_fn(filter_pov_array, variant=self.variant, value_params=params), b_1=np.exp(inv_temp))
-        
-        # Adjust the probability with the lapse rate
+        # Compute the probability of choosing the left option using the sigmoid function and apply lapse rate
+        p_left = sigmoid(self.value_fn(filter_pov_array, variant=self.variant), b_1=np.exp(inv_temp))
         p_left = (1 - lapse) * p_left + lapse * 0.5
-
         return p_left
 
     
     def predict(self, fitted_dict:dict, games:list):
         """
-        Predicts the model's behavior based on the fitted parameters and game data.
-        Parameters:
-        -----------
-        fitted_dict : dict
-            A dictionary containing the fitted parameters for the model. Must include the key "model" which should match the model's name.
-        games : list
-            A list of game data to be processed and used for prediction.
-        Returns:
-        --------
-        model_data : Prodict
-            A Prodict object containing the following keys:
-            - boards: The boards from the game data.
-            - oracles: The oracles from the game data.
-            - choose_left: An array indicating the model's choice (left or not) for each game condition.
-            - paths: The paths from the game data.
-            - is_transition: A boolean array indicating transitions in the game data.
-        Raises:
-        -------
-        AssertionError
-            If the model name in fitted_dict does not match the model's name.
+            Predicts the model's behavior based on the fitted parameters and game data.
+            Parameters:
+            -----------
+            fitted_dict : dict
+                A dictionary containing the fitted parameters for the model. Must include the key "model" which should match the model's name.
+            games : list
+                A list of game data to be processed and used for prediction.
+            Returns:
+            --------
+            model_data : Prodict
+                A Prodict object containing the following keys:
+                - boards: The boards from the game data.
+                - oracles: The oracles from the game data.
+                - choose_left: An array indicating the model's choice (left or not) for each game condition.
+                - paths: The paths from the game data.
+                - is_transition: A boolean array indicating transitions in the game data.
+            Raises:
+            -------
+            AssertionError
+                If the model name in fitted_dict does not match the model's name.
         """
         assert fitted_dict["model"] == self.name
         params = copy_and_update(self.default_params, fitted_dict)
 
         #we process the game by taking the "point of view" of the player
         game_data = preprocess_data(games)
-        pov_array = make_pov_array(game_data.boards, game_data.paths)
 
         #apply the filter function to the boards
-        filter_pov_array = self.filter_fn(pov_array)
-
+        filter_pov_array = self.filter_fn(game_data.pov_array)
         p_left_ = self.get_p_left(params, filter_pov_array)
-        if "global_depth" in params["filter_params"].keys():
-            p_left = xr.concat([p_left_.sel(conditions = condition, filter_params = params["filter_params"]["global_depth"]) for condition in p_left_.conditions.values], dim = "conditions")
-        else:
+
+        if self.effort_version == "filter_adapt":
             p_left = xr.concat([p_left_.sel(conditions = condition, filter_params = params["filter_params"][condition]) for condition in p_left_.conditions.values], dim = "conditions")
+        elif self.effort_version == "policy_compress":
+            p_left = xr.concat([p_left_.sel(conditions = condition, filter_params = params["filter_params"]["global"]) for condition in p_left_.conditions.values], dim = "conditions")
         p_left['conditions'] = p_left_.conditions
     
         choose_left = (np.random.rand(*p_left.shape) < p_left).astype(int)
-
         model_data = {
                         "boards": game_data.boards,
                         "oracles": game_data.oracles,
@@ -305,7 +237,6 @@ class Model():
 
         model_data = Prodict(model_data)
         return model_data
-
 
 # Filter functions
 def filter_value(pov_array: xr.DataArray, filter_params: dict= {"value": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}):
@@ -334,7 +265,7 @@ def filter_depth(pov_array: xr.DataArray, filter_params: dict = {"depth": [0, 1,
     return filtered_array
 
 # Value functions
-def value_EV(pov_array: xr.DataArray, variant, value_params): 
+def value_EV(pov_array: xr.DataArray, variant, value_params = {}): 
     value_params_ = {"exp_value": 5, 0:0, 0.125:0.125, 0.25:0.25, 0.375:0.375, 0.5:0.5, 0.75:0.75, 1:1}
     value_params_.update(value_params)
     
@@ -447,7 +378,6 @@ def value_sum(pov_array: xr.DataArray, variant = None, value_params = None):
     
     return v_left - v_right
 
-
 def value_max(pov_array: xr.DataArray, variant = None, value_params = None):
     values = pov_array.copy()
     left = values.isel(rows = values.rows[1:], cols = values.cols[:-1])
@@ -462,6 +392,18 @@ def value_max(pov_array: xr.DataArray, variant = None, value_params = None):
     
     return v_left - v_right
 
+def get_effort_filter_value_options(type_):
+    effort_versions = ["filter_adapt", "policy_compress"]
+
+    # which filter functions to compare to
+    filter_fns = [filter_depth, filter_rank, filter_value]
+
+    value_fns = [value_path, value_max, value_sum, value_levelmean]
+
+    if type_ == "R" or type_ == "T": 
+        value_fns.append(value_EV)
+
+    return effort_versions, filter_fns, value_fns
     
 
 

@@ -152,7 +152,10 @@ class Analyzer():
         reaction_time_data (DataFrame): A dataframe containing reaction time data for each player and game.
         """
         self.variant = variant
-        self.data = get_data(variant)
+        
+        with open(f"../data/raw/data_{variant}.json", "r") as f:
+            self.data = json.load(f)
+
         self.baseline_name = baseline_name
         self.conditions = get_stochasticity_levels(self.variant)
         self.folders = folders
