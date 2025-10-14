@@ -192,13 +192,14 @@ colormaps_ = {
 
 colormaps = {name: plt.cm.colors.LinearSegmentedColormap.from_list(name, colors) for name, colors in colormaps_.items()}
 
-def report_p_value(p, threshold = 1e-10): 
+def report_p_value(p, threshold_power = -10): 
     '''
     Basically just prettifies the p-values; 
     Reports exact if p > threshold, otherwise reports p<threshold
     '''
+    threshold = 10**threshold_power
     if p < threshold: 
-        return f"p < {threshold:.1e}"
+        return f"p < 10^{{{threshold_power}}}"
     else:
         # Convert to scientific notation with 2 sigfigs
         p_str = f"{p:.1e}"

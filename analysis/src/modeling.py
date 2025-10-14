@@ -65,7 +65,7 @@ class MultiStart():
 
 class Model(): 
     def __init__(self, effort_version: str, filter_fn: callable, value_fn: callable, variant: str):
-        assert effort_version in ["filter_adapt", "policy_compress"], "Invalid effort version"
+        assert effort_version in ["filter_adapt", "policy_compress", "both"], "Invalid effort version"
         self.effort_version, self.filter_fn, self.value_fn, self.variant = effort_version, filter_fn, value_fn, variant
         self.name = self.effort_version + "." + self.value_fn.__name__  + "." + self.filter_fn.__name__ 
         self.default_params = {p:p for p in get_stochasticity_levels(self.variant)}
@@ -141,7 +141,8 @@ class Model():
         p_left = self.get_p_left(params, filter_pov_array)
         log_likelihood = choose_left * np.log(p_left) + (1 - choose_left) * np.log(1 - p_left)
         
-        if self.effort_version == "filter_adapt":
+        # "both" also includes conditional filter parameters
+        if self.effort_version == "filter_adapt" or self.effort_version == "both":
             log_likelihood_player = log_likelihood.sum(["games", "trials"], keep_attrs = True)
             ml = log_likelihood_player.max("filter_params")
             mle = [argmax_random_tiebreaker(log_likelihood_player.sel(conditions = condition)) for condition in log_likelihood_player.conditions]
@@ -177,7 +178,8 @@ class Model():
 
         if self.effort_version == "filter_adapt":
             inv_temp = params["inv_temp"]
-        elif self.effort_version == "policy_compress":
+        # "both" also includes conditional inverse temperatures
+        elif self.effort_version == "policy_compress" or self.effort_version == "both":
             inv_temp = xr.DataArray([params[f"condition_inv_temp_{i}"] for i in range(len(get_stochasticity_levels(self.variant)))], dims="conditions")        
         else: raise ValueError(f"Invalid effort version: {self.effort_version}")
         
@@ -222,7 +224,7 @@ class Model():
 
         if self.effort_version == "filter_adapt":
             p_left = xr.concat([p_left_.sel(conditions = condition, filter_params = params["filter_params"][condition]) for condition in p_left_.conditions.values], dim = "conditions")
-        elif self.effort_version == "policy_compress":
+        elif self.effort_version == "policy_compress" or self.effort_version == "both":
             p_left = xr.concat([p_left_.sel(conditions = condition, filter_params = params["filter_params"]["global"]) for condition in p_left_.conditions.values], dim = "conditions")
         p_left['conditions'] = p_left_.conditions
     

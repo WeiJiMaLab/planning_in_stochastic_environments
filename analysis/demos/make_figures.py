@@ -7,7 +7,7 @@ currentdir = os.getcwd()
 parentdir = os.path.dirname(currentdir) + "/src/"
 sys.path.insert(0, parentdir) 
 
-from modeling import filter_depth, filter_rank, filter_value, value_path, value_EV, value_max, value_sum, value_levelmean
+from modeling import get_effort_filter_value_options
 from modelchecking import trialwise_rewards, trialwise_greedydiff, trialwise_chooseleft
 from analysis import Analyzer, lmm, glmm
 from plots import set_helvetica_style
@@ -17,34 +17,16 @@ from utils import colormaps, report_p_value, strsimplify, get_stochasticity_leve
 def get_colormap(type_):
     return {"R": colormaps["arctic"], "T": colormaps["berry"], "V": colormaps["grass"]}[type_]
 
-def get_filter_and_value_functions(type_):
-    # which filter functions to compare to
-    compare_filter_fns = [
-        ["depth", filter_depth],
-        ["rank", filter_rank],
-        ["value", filter_value],
-    ]
 
-    compare_value_fns = [
-        ["path", value_path], 
-        ["max", value_max],
-        ["sum", value_sum], 
-        ["level-mean", value_levelmean]
-    ]
-
-    if type_ == "R" or type_ == "T": 
-        compare_value_fns.append(["EV", value_EV])
-    return compare_filter_fns, compare_value_fns
-
-def total_rt_analysis(folder="main", filter_fn="filter_depth", value_fn="value_path", plot_fns=["greedydiff", "rewards", "depth"]):
+def total_rt_analysis(folder="raw", effort_version="policy_compress", filter_fn="filter_depth", value_fn="value_path", plot_fns=["greedydiff", "rewards", "rt"]):
     # Plot total RT analysis
     fig, axs = plt.subplots(1, 3, figsize=(12.5, 5), gridspec_kw={'hspace': 0.5, 'wspace': 0.4})
     result_df, log_df, glmm_result_df = [], [], []
 
     # Plot total RT for each condition type
     for col, type_ in enumerate(["R", "V", "T"]):
-        analyzer = Analyzer(f"{folder}.{filter_fn}.{value_fn}", 
-                          *get_filter_and_value_functions(type_),
+        analyzer = Analyzer(f"{folder}.{effort_version}.{filter_fn}.{value_fn}", 
+                          *get_effort_filter_value_options(type_),
                           type_, colors=get_colormap(type_), folders=[folder])
         
         # Plot total RT
@@ -78,8 +60,8 @@ def total_rt_analysis(folder="main", filter_fn="filter_depth", value_fn="value_p
                            gridspec_kw={'hspace': 0.5, 'wspace': 0.4})
     
     for col, type_ in enumerate(["R", "V", "T"]):
-        analyzer = Analyzer(f"{folder}.{filter_fn}.{value_fn}",
-                          *get_filter_and_value_functions(type_),
+        analyzer = Analyzer(f"{folder}.{effort_version}.{filter_fn}.{value_fn}",
+                          *get_effort_filter_value_options(type_),
                           type_, colors=get_colormap(type_), folders=[folder])
         
         for row, plot_fn in enumerate(plot_fns):
@@ -109,16 +91,16 @@ def total_rt_analysis(folder="main", filter_fn="filter_depth", value_fn="value_p
                                     "Variable": "points"})
                 result_df.append(reward_result)
                 
-            elif plot_fn == "depth":
+            elif plot_fn == "rt":
                 df_rt = analyzer.plot_stochasticity_vs_rt(ax=ax, first_rt=True)
                 ax.set(xticklabels=[strsimplify(x) for x in ax.get_xticks()],
                       xlabel="Stochasticity Level (%)", 
                       ylabel="First Choice RT (s)")
                 
-                depth_result, depth_log = lmm(df_rt)
-                depth_result.update({"Model Name": "empirical", "Stochasticity Type": type_, 
+                rt_result, rt_log = lmm(df_rt)
+                rt_result.update({"Model Name": "empirical", "Stochasticity Type": type_, 
                                    "Variable": "rt"})
-                result_df.append(depth_result)
+                result_df.append(rt_result)
 
             # Add labels and titles
             ax.text(-0.3, 1.15, alphabet(row * 3 + col), transform=ax.transAxes,
@@ -131,15 +113,16 @@ def total_rt_analysis(folder="main", filter_fn="filter_depth", value_fn="value_p
     if log_df and result_df:
         save_dir = f"figures/{folder}/empirical"
         os.makedirs(save_dir, exist_ok=True)
-        pd.DataFrame(log_df).to_csv(f"{save_dir}/depth_log.csv", index=False)
-        pd.DataFrame(result_df).to_csv(f"{save_dir}/depth_result.csv", index=False)
+        pd.DataFrame(log_df).to_csv(f"{save_dir}/model_log.csv", index=False)
+        pd.DataFrame(result_df).to_csv(f"{save_dir}/model_result.csv", index=False)
         pd.DataFrame(glmm_result_df).to_csv(f"{save_dir}/glmm_result.csv", index=False)
 
     os.makedirs(f"figures/{folder}/", exist_ok=True)
     fig.savefig(f"figures/{folder}/empirical_first_rt.png", bbox_inches='tight', dpi=600)
 
 
-def model_comparison_analysis(folders=["main"],
+def model_comparison_analysis(folders=["raw"],
+                          effort_version = "policy_compress",
                           filter_fn="filter_depth", 
                           value_fn="value_path",
                           types=["R", "V", "T"],
@@ -158,13 +141,13 @@ def model_comparison_analysis(folders=["main"],
 
     for i, type_ in enumerate(types):
         # Initialize analyzer
-        analyzer = Analyzer(f"{folders[0]}.{filter_fn}.{value_fn}",
-                        *get_filter_and_value_functions(type_),
+        analyzer = Analyzer(f"{folders[0]}.{effort_version}.{filter_fn}.{value_fn}",
+                        *get_effort_filter_value_options(type_),
                         type_, colors=get_colormap(type_), folders=folders)
 
         # Main panel showing full range
         ax_main = axes[i][0]
-        analyzer.plot_model_comparison(ax=ax_main, format="violin", kind=kind)
+        analyzer.plot_model_comparison(ax=ax_main, kind=kind)
         ax_main.set_xlim(*full_range)
         ax_main.grid(True, axis='y')
         ax_main.text(-0.3, 1.15, alphabet(i), transform=ax_main.transAxes, 
@@ -172,7 +155,7 @@ def model_comparison_analysis(folders=["main"],
 
         # Zoomed panel
         ax_zoom = axes[i][1] 
-        analyzer.plot_model_comparison(ax=ax_zoom, format="violin", kind=kind)
+        analyzer.plot_model_comparison(ax=ax_zoom, kind=kind)
         ax_zoom.set_xlim(*zoom_range)
         ax_zoom.set_xlabel("(Zoomed in)")
         ax_zoom.set_yticklabels([])
@@ -186,11 +169,12 @@ def model_comparison_analysis(folders=["main"],
     fig.savefig(f"{save_dir}/{save_name}.png", bbox_inches='tight', dpi=600)
 
 
-def model_checking_analysis(folder="main", 
+def model_checking_analysis(folder="raw", 
+                          effort_version="policy_compress",
                           filter_fn="filter_depth",
                           value_fn="value_path",
                           types=["R", "V", "T"],
-                          plot_fns=["greedydiff", "rewards", "depth"],
+                          plot_fns=["greedydiff", "rewards", "inv_temp"],
                           save_analysis=True,
                           save_name=None):
     """Generate model checking plots and analysis."""
@@ -205,8 +189,8 @@ def model_checking_analysis(folder="main",
 
     # Plot each condition type in columns
     for col, type_ in enumerate(types):
-        analyzer = Analyzer(f"{folder}.{filter_fn}.{value_fn}",
-                          *get_filter_and_value_functions(type_),
+        analyzer = Analyzer(f"{folder}.{effort_version}.{filter_fn}.{value_fn}",
+                          *get_effort_filter_value_options(type_),
                           type_, colors=get_colormap(type_), 
                           folders=[folder])
 
@@ -242,20 +226,42 @@ def model_checking_analysis(folder="main",
                 ax.set_yticklabels([strsimplify(y) for y in ax.get_yticks()])
 
                 # Save depth analysis results
-                depth_result, depth_log = lmm(df_depth)
-                depth_result.update({
+                model_result, model_log = lmm(df_depth)
+                model_result.update({
                     "Model Name": analyzer.baseline_name.replace(".", "_"),
                     "Stochasticity Type": type_,
                     "Variable": "depth"
                 })
-                result_df.append(depth_result)
+                result_df.append(model_result)
 
-                for log in depth_log:
+                for log in model_log:
                     formula, status = log.split(":")
                     log_df.append({
                         "Model Name": analyzer.transform_name(analyzer.baseline_name),
                         "Condition": {"R": "Reliability", "V": "Volatility", "T": "Controllability"}[type_],
                         "Variable": "y = depth",
+                        "Formula / Status": f"\\texttt{{{formula}:{status}}}"
+                    })
+
+            elif plot_fn == "inv_temp":
+                df_invtemp = analyzer.plot_stochasticity_vs_conditional_inv_temp(ax=ax)
+                ax.set(xlabel="Stochasticity Level (%)",
+                      ylabel="Log $\\beta$")
+                ax.set_xticklabels([strsimplify(x) for x in ax.get_xticks()])
+                ax.set_yticklabels([strsimplify(y) for y in ax.get_yticks()])
+                
+                invtemp_result, invtemp_log = lmm(df_invtemp)
+                invtemp_result.update({"Model Name": analyzer.transform_name(analyzer.baseline_name),
+                                   "Stochasticity Type": type_, 
+                                   "Variable": "invtemp"})
+                result_df.append(invtemp_result)
+                
+                for log in invtemp_log:
+                    formula, status = log.split(":")
+                    log_df.append({
+                        "Model Name": analyzer.transform_name(analyzer.baseline_name),
+                        "Condition": {"R": "Reliability", "V": "Volatility", "T": "Controllability"}[type_],
+                        "Variable": "y = invtemp",
                         "Formula / Status": f"\\texttt{{{formula}:{status}}}"
                     })
 
@@ -277,8 +283,8 @@ def model_checking_analysis(folder="main",
     os.makedirs(save_dir, exist_ok=True)
 
     if save_analysis and log_df and result_df:
-        pd.DataFrame(log_df).to_csv(f"{save_dir}/depth_log.csv", index=False)
-        pd.DataFrame(result_df).to_csv(f"{save_dir}/depth_result.csv", index=False)
+        pd.DataFrame(log_df).to_csv(f"{save_dir}/model_log.csv", index=False)
+        pd.DataFrame(result_df).to_csv(f"{save_dir}/model_result.csv", index=False)
     
     save_name = "grid" if save_name is None else save_name
     fig.savefig(f"{save_dir}/{save_name}.png", bbox_inches='tight', dpi=600)
@@ -286,88 +292,107 @@ def model_checking_analysis(folder="main",
 
 
 if __name__ == "__main__":
-    helvetica_regular, helvetica_bold = set_helvetica_style()
-    folders = ["sim_variable_depth/variable_filter", "sim_variable_depth/variable_temp"]
-    os.makedirs(f"figures/{folders[0]}", exist_ok=True)
-    model_comparison_analysis(folders, "filter_depth", "value_path")
+    # helvetica_regular, helvetica_bold = set_helvetica_style()
+    # os.makedirs(f"figures/raw", exist_ok=True)
+    folder = "raw"
 
-    folders = ["sim_variable_inv_temp/variable_temp", "sim_variable_inv_temp/variable_filter"]
-    os.makedirs(f"figures/{folders[0]}", exist_ok=True)
-    model_comparison_analysis(folders, "filter_depth", "value_path")
+    # total_rt_analysis()
+    # model_comparison_analysis()
+    # model_checking_analysis( 
+    #         folder = folder,
+    #         effort_version = "policy_compress", 
+    #         filter_fn = "filter_depth", 
+    #         value_fn = "value_path"
+    # )
 
-    # total_rt_analysis(folder, "filter_depth", "value_path")
+    # model_checking_analysis( 
+    #         folder = folder,
+    #         effort_version = "policy_compress", 
+    #         filter_fn = "filter_depth", 
+    #         value_fn = "value_levelmean"
+    # )
 
+    # model_checking_analysis( 
+    #         folder = folder,
+    #         effort_version = "policy_compress", 
+    #         filter_fn = "filter_depth", 
+    #         value_fn = "value_max"
+    # )
 
-    # model_comparison_analysis(folder, "filter_depth", "value_levelmean")
+    # model_checking_analysis( 
+    #         folder = folder,
+    #         effort_version = "policy_compress", 
+    #         filter_fn = "filter_depth", 
+    #         value_fn = "value_sum"
+    # )
 
-    # model_checking_analysis(folder, "filter_depth", "value_path")
-    # model_checking_analysis(folder, "filter_depth", "value_EV", types = ["R", "T"], plot_fns = ["greedydiff"], save_analysis = False)
-    # model_checking_analysis(folder, "filter_depth", "value_max")
-    # model_checking_analysis(folder, "filter_depth", "value_sum")
-    # model_checking_analysis(folder, "filter_depth", "value_levelmean")
+    # model_checking_analysis(
+    #         folder = folder,
+    #         effort_version = "policy_compress", 
+    #         filter_fn = "filter_depth", 
+    #         value_fn = "value_EV",
+    #         types = ["R", "T"],
+    #         plot_fns = ["greedydiff"]
+    # )
 
-
-    # df_logs = []
-    # for filename in glob.glob(f"figures/{folder}/*/depth_log.csv"):
-    #     df_logs.append(pd.read_csv(filename))
+    # # Process model logs into LaTeX table
+    # # Combine all model log CSVs
+    # df_logs = pd.concat([pd.read_csv(f) for f in glob.glob(f"figures/{folder}/*/model_log.csv")])
     
-    # df_logs = pd.concat(df_logs)
+    # # Format and save as LaTeX table
     # df_logs = df_logs.set_index(["Model Name", "Condition", "Variable", "Formula / Status"])
-
-    # df_logs.to_latex(f"figures/depth_log.tex", index=True)
-    # # Replace \cline with \cmidrule(lr) in depth_log.tex
-    # with open('figures/depth_log.tex', 'r') as f:
-    #     content = f.read()
-    # content = content.replace('\\cline', '\\cmidrule(lr)')
-    # with open('figures/depth_log.tex', 'w') as f:
+    # df_logs.to_latex(f"figures/model_log.tex", index=True)
+    
+    # # Replace \cline with \cmidrule for better formatting
+    # with open('figures/model_log.tex', 'r') as f:
+    #     content = f.read().replace('\\cline', '\\cmidrule(lr)')
+    # with open('figures/model_log.tex', 'w') as f:
     #     f.write(content)
 
 
-    # df_results = []
-    # for filename in sorted(glob.glob(f"figures/{folder}/*/depth_result.csv")):
-    #     df_results.append(pd.read_csv(filename))
-    # df_results = pd.concat(df_results)
-    # df_results = df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
+    # Combine all model result CSVs
+    df_results = pd.concat([
+        pd.read_csv(f) for f in sorted(glob.glob(f"figures/{folder}/*/model_result.csv"))
+    ])
+    df_results = df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
     
-    # # Write to tex file with pgf format
-    # with open(f"figures/depth_result.tex", 'w') as f:
-    #     for idx, row in df_results.iterrows():
-    #         model, stoch, var = idx
-    #         key = f"{model}.{stoch}.{var}"
-    #         beta = row['beta']
-    #         dof = row['dof']
-    #         tstat = row['tstat']
-    #         pval = row['pval']
+    # Write LMM results to tex file in pgf format
+    with open(f"figures/model_result.tex", 'w') as f:
+        for (model, stoch, var), row in df_results.iterrows():
+            key = f"{model.replace(' ', '.')}.{stoch}.{var}"
+            f.write(
+                f"\\pgfkeyssetvalue{{{key}}}{{LMM, "
+                f"$\\beta = {row['beta']:.2f}$, "
+                f"$t_{{{int(row['dof'])}}} = {row['tstat']:.1f}$, "
+                f"${report_p_value(row['pval'])}$}}\n"
+            )
+
+    # Combine all GLMM result CSVs
+    glmm_df_results = pd.concat([
+        pd.read_csv(f) for f in sorted(glob.glob(f"figures/{folder}/*/glmm_result.csv"))
+    ])
+    glmm_df_results = glmm_df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
+
+    # Write GLMM results to tex file in pgf format
+    with open(f"figures/model_result.tex", 'a') as f:
+        for (model, stoch, var), row in glmm_df_results.iterrows():
+            key = f"{model.replace(' ', '.')}.{stoch}.{var}"
             
-    #         f.write(f"\\pgfkeyssetvalue{{{key}}}{{LMM, $\\beta = {beta:.2f}$, ")
-    #         f.write(f"$t_{{{int(dof)}}} = {tstat:.1f}$, ")
-    #         f.write(f"${report_p_value(pval)}$}}\n")
+            # Write main effect results
+            f.write(
+                f"\\pgfkeyssetvalue{{{key}}}{{GLMM, "
+                f"main effect $\\beta = {row['beta_main']:.2f}$, "
+                f"$\\chi^2(1) = {row['chi2_main']:.1f}$, "
+                f"${report_p_value(row['pval_main'])}$}}\n"
+            )
 
-    # glmm_df_results = []
-    # for filename in sorted(glob.glob(f"figures/{folder}/*/glmm_result.csv")):
-    #     glmm_df_results.append(pd.read_csv(filename))
-    # glmm_df_results = pd.concat(glmm_df_results)
-    # glmm_df_results = glmm_df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
-
-    # with open(f"figures/depth_result.tex", 'a') as f:
-    #     for idx, row in glmm_df_results.iterrows():
-    #         model, stoch, var = idx
-    #         key = f"{model}.{stoch}.{var}"
-    #         beta_main = row['beta_main']
-    #         chi2_main = row['chi2_main']
-    #         pval_main = row['pval_main']
-
-    #         beta_inter = row['beta_inter']
-    #         chi2_inter = row['chi2_inter']
-    #         pval_inter = row['pval_inter']
-
-    #         f.write(f"\\pgfkeyssetvalue{{{key}}}{{GLMM, main effect $\\beta = {beta_main:.2f}$, ")
-    #         f.write(f"$\chi^2(1) = {chi2_main:.1f}$, ")
-    #         f.write(f"${report_p_value(pval_main)}$}}\n")
-
-    #         f.write(f"\\pgfkeyssetvalue{{{key + ".interaction"}}}{{GLMM, interaction $\\beta = {beta_inter:.2f}$, ")
-    #         f.write(f"$\chi^2(1) = {chi2_inter:.1f}$, ")
-    #         f.write(f"${report_p_value(pval_inter)}$}}\n")
+            # Write interaction results  
+            f.write(
+                f"\\pgfkeyssetvalue{{{key + '.interaction'}}}{{GLMM, "
+                f"interaction $\\beta = {row['beta_inter']:.2f}$, "
+                f"$\\chi^2(1) = {row['chi2_inter']:.1f}$, "
+                f"${report_p_value(row['pval_inter'])}$}}\n"
+            )
 
 
             

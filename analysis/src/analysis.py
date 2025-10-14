@@ -130,12 +130,13 @@ def bootstrap(x, n = 1e4):
     return x[samp_indices]
 
 class Analyzer(): 
-    def __init__(self, baseline_name, filter_fns, value_fns, variant, colors, folders = ["fit"], verbose = False, supplementary_models = None):
+    def __init__(self, baseline_name, effort_versions, filter_fns, value_fns, variant, colors, folders = ["raw"], verbose = False, supplementary_models = None):
         """
         Initialize the analysis object.
 
         Parameters:
         baseline_name (str): The name of the baseline model.
+        effort_versions (list of str): A list of effort versions to compare.
         filter_fns (list of tuples): A list of tuples where each tuple contains a filter function.
         value_fns (list of tuples): A list of tuples where each tuple contains a value function.
         variant (str): The variant of the data to be analyzed.
@@ -162,17 +163,18 @@ class Analyzer():
 
         self.model_data = defaultdict()
         self.model_fits = defaultdict()
-        flag = True
 
         for folder in folders:
-            for _, filter_fn in filter_fns: 
-                for _, value_fn in value_fns: 
-                    df, fit = self.preprocess_data(variant, filter_fn, value_fn, folder, verbose = flag)
-                    if df is None:
-                        continue
-                    self.model_data[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = df
-                    self.model_fits[f"{folder}.{filter_fn.__name__}.{value_fn.__name__}"] = (Model(filter_fn, value_fn, variant), fit)
-                    flag = False
+            for effort_version in effort_versions: 
+                flag = True
+                for filter_fn in filter_fns: 
+                    for value_fn in value_fns: 
+                        df, fit = self.preprocess_data(variant, effort_version, filter_fn, value_fn, folder, verbose = flag)
+                        if df is None:
+                            continue
+                        self.model_data[f"{folder}.{effort_version}.{filter_fn.__name__}.{value_fn.__name__}"] = df
+                        self.model_fits[f"{folder}.{effort_version}.{filter_fn.__name__}.{value_fn.__name__}"] = (Model(effort_version, filter_fn, value_fn, variant), fit)
+                        flag = False
 
         flag = True
         if supplementary_models is not None: 
@@ -185,13 +187,8 @@ class Analyzer():
                 self.folders.append(folder)
                 flag = False
 
-
         self.colors = colors
         self.baseline = self.model_data[baseline_name]
-
-        depths = {}
-        for i, row in self.baseline.iterrows(): 
-            depths[row.player] = {i: dict(row)[i] for i in self.conditions}
 
         reaction_time_data = []
         for player in self.data.keys(): 
@@ -203,12 +200,11 @@ class Analyzer():
                     "log_first_rt": np.log(np.array([trial["rt"] for trial in game["trials"]])[0]/ 1000),
                     "log_total_rt": np.log((np.array([trial["rt"] for trial in game["trials"]])/ 1000).sum()),
                     "condition": game["p"],
-                    "depth": depths[player][game["p"]]
                 }))
 
         self.reaction_time_data = pd.DataFrame(reaction_time_data)
 
-    def preprocess_data(self, variant, filter_fn, value_fn, folder, verbose=False):
+    def preprocess_data(self, variant, effort_version, filter_fn, value_fn, folder, verbose=False):
         """Preprocess model fit data by loading fits and computing information criteria.
         
         Args:
@@ -224,9 +220,9 @@ class Analyzer():
         if verbose: 
             print(f"folder: {folder}")
         try:
-            fit = load_fit(variant, filter_fn, value_fn, folder=folder, verbose=False)
+            fit = load_fit(variant, effort_version, filter_fn, value_fn, folder=folder, verbose=False)
         except FileNotFoundError:
-            print(f"Warning: file not found for variant {variant}, filter {filter_fn.__name__}, "
+            print(f"Warning: file not found for variant {variant}, effort_version {effort_version}, filter {filter_fn.__name__}, "
                   f"value {value_fn.__name__}, folder {folder}")
             return None, None
 
@@ -243,42 +239,36 @@ class Analyzer():
         df["aic"] = 2 * (n_params + df["nll"]) 
         df["bic"] = n_params * np.log(n) + df["nll"]
 
-        # Handle global depth parameter
-        if "global_depth" in params:
-            for c in get_stochasticity_levels(self.variant):
-                df[c] = df["global_depth"]
-            df = df.drop(columns=["global_depth"])
-            
-        # Handle conditional lapse rates
-        if "condition_lapse_0" in df.columns:
-            if verbose:
-                print("\t[Conditional Lapse] found conditional lapse, calculating effective depth")
-            for i, c in enumerate(get_stochasticity_levels(self.variant)):
-                lapse = df[f"condition_lapse_{i}"]
-                df[c] = df[c] * (1 - lapse)
-            lapse_cols = [f"condition_lapse_{i}" for i in range(len(get_stochasticity_levels(self.variant)))]
-            df = df.drop(columns=lapse_cols)
-
         return df, fit
 
 
     def transform_name(self, name): 
-        folder, filter, value = name.split(".")
+        folder, effort_version, filter, value = name.split(".")
+        if effort_version == "policy_compress":
+            effort_version = "PC"
+        elif effort_version == "filter_adapt":
+            effort_version = "FA"
+        elif effort_version == "both":
+            effort_version = "PC&FA"
+        else: 
+            raise ValueError(f"Invalid effort version: {effort_version}")
+
         filter = filter.split("_")[-1]
         value = value.split("_")[-1]
         if value == "ignoreuncertain": value = "ignore-uncertain"
         if len(self.folders) > 1: 
-            return f"{filter} {value} ({folder})"
+            return f"{effort_version} {filter} {value} ({folder})"
         else: 
-            return f"{filter} {value}"
+            return f"{effort_version} {filter} {value}"
 
-    def plot_model_comparison(self, n_bootstrap = 1e6, verbose = False, kind = "nll", format = "bar", ax=None, baseline_name=None): 
+    def plot_model_comparison(self, n_bootstrap = 1e6, verbose = False, kind = "nll", ax=None, baseline_name=None): 
         '''
         baseline_name allows for a different baseline to be used for the model comparison. If None, the baseline_name is used.
         '''
         if ax is None:
             fig, ax = plt.subplots(1, 1)
         print("N bootstrap", n_bootstrap)
+        assert kind in ["nll", "aic", "bic"], "Invalid kind: must be one of 'nll', 'aic', or 'bic'"
         
         plot = defaultdict(lambda: [])
 
@@ -292,20 +282,8 @@ class Analyzer():
         for key in tqdm.tqdm(keys):
             baseline = self.model_data[baseline_name]
             model = self.model_data[key]
-            if key == baseline_name:
-                name = r"$\bf{" + self.transform_name(baseline_name).replace("_", "\\_").replace(" ", "\ ") + r"}$"
-            else:
-                name = self.transform_name(key)
-
-            # bootstrapped NLL model
-            if kind == "nll":
-                diff = np.array(model["nll"] - baseline["nll"])
-            elif kind == "aic":
-                diff = np.array(model["aic"] - baseline["aic"])
-            elif kind == "bic":
-                diff = np.array(model["bic"] - baseline["bic"])
-            else:
-                raise ValueError("Invalid kind: must be one of 'nll', 'aic', or 'bic'")
+            name = r"$\bf{" + self.transform_name(key).replace(" ", "\ ") + r"}$" if key == baseline_name else self.transform_name(key)
+            diff = np.array(model[kind] - baseline[kind])
 
             # bootstrapped NLL model - NLL baseline
             bootstrap_diff = bootstrap(diff, n_bootstrap).sum(-1)
@@ -313,10 +291,9 @@ class Analyzer():
             mean = np.mean(bootstrap_diff)
             conf = np.quantile(bootstrap_diff, [0.025, 0.975])
             sig = (conf > 0).all() or (conf < 0).all()
-            conf_centered = conf - mean 
             
             plot["mean"].append(mean)
-            plot["conf"].append(conf_centered)
+            plot["conf"].append(conf - mean)
             plot["sig"].append(sig)
             plot["name"].append(name)
             plot["dist"].append(bootstrap_diff)
@@ -326,54 +303,42 @@ class Analyzer():
         plot = Prodict(plot)
 
         # significant stars
-        sig_star_positions = np.array(plot.conf)[:, -1] + np.array(plot.mean)
-        sig_star_positions = np.max(sig_star_positions) * 0.1 + sig_star_positions
-        
-        sig_names = [plot.name[i] for i in range(len(plot.sig)) if plot.sig[i]]
-        sig_star_positions = [sig_star_positions[i] for i in range(len(plot.sig)) if plot.sig[i]]
+        # sig_star_positions = np.array(plot.conf)[:, -1] + np.array(plot.mean)
+        # sig_star_positions = np.max(sig_star_positions) * 0.1 + sig_star_positions
+        # sig_names = [plot.name[i] for i in range(len(plot.sig)) if plot.sig[i]]
+        # sig_star_positions = [sig_star_positions[i] for i in range(len(plot.sig)) if plot.sig[i]]
 
-        if format == "violin":
-            color = self.colors(0.5)
-            violin = ax.violinplot(np.array(plot.dist).T,
-                           showmeans=False,
-                           showextrema = False,
-                           vert = False,
-                           widths = 0.8,
-                           quantiles = [[0.025, 0.975]] * len(plot.name)
-                          )
+        violin = ax.violinplot(np.array(plot.dist).T,
+                        showmeans=False,
+                        showextrema = False,
+                        vert = False,
+                        widths = 0.8,
+                        quantiles = [[0.025, 0.975]] * len(plot.name)
+                        )
 
-            for part in violin['bodies']:
-                part.set_facecolor(color)
-                part.set_alpha(0.4)
 
-            for partname in (['cquantiles']):
-                vp = violin[partname]
-                vp.set_edgecolor(color)
-                vp.set_linewidth(1.5)
+        # plot formatting
+        color = self.colors(0.5)
+        for part in violin['bodies']:
+            part.set_facecolor(color)
+            part.set_alpha(0.4)
 
-            ax.set_yticks([y + 1 for y in range(len(plot.name))], labels= plot.name)
-                  
-            
-            ax.set_ylim([0.2, len(plot.name) + 0.5])
-            ax.vlines(0, -1, len(plot.name) + 1, colors=self.colors(0.5), alpha=0.3, linestyle='dotted')
-            ax.grid(c = [0.95, 0.95, 0.95], axis = 'y', linewidth = 1)
-            ax.spines[['top', 'right']].set_visible(False)
-            ax.spines[['left', 'bottom']].set_linewidth(1.5)
-            ax.set_axisbelow(True)
-            ax.xaxis.set_tick_params(width=1.5, length = 10)
-            ax.yaxis.set_tick_params(width=1.5, length = 10)
-            ax.set_xlabel(f"$\Delta$ {kind.upper()} (model - $\\bf{{baseline}}$) \n($\leftarrow$ better fit)")
+        for partname in (['cquantiles']):
+            vp = violin[partname]
+            vp.set_edgecolor(color)
+            vp.set_linewidth(1.5)
 
-        else:
-            ax.barh(plot.name, plot.mean, align='center', color = "#a4c4eb", alpha=1)
-            ax.errorbar(plot.mean, plot.name, xerr = np.abs(np.array(plot.conf)).T, ecolor = self.colors(0.5), fmt = "none", capsize = 3, elinewidth=2, markeredgewidth=2)
-            # plt.scatter(sig_star_positions, sig_names, s = 100, color = 'k', marker = "*")
+        ax.set_yticks([y + 1 for y in range(len(plot.name))], labels= plot.name)
+        ax.set_ylim([0.2, len(plot.name) + 0.5])
+        ax.vlines(0, -1, len(plot.name) + 1, colors=self.colors(0.5), alpha=0.3, linestyle='dotted')
+        ax.grid(c = [0.95, 0.95, 0.95], axis = 'y', linewidth = 1)
+        ax.spines[['top', 'right']].set_visible(False)
+        ax.spines[['left', 'bottom']].set_linewidth(1.5)
+        ax.set_axisbelow(True)
+        ax.xaxis.set_tick_params(width=1.5, length = 10)
+        ax.yaxis.set_tick_params(width=1.5, length = 10)
+        ax.set_xlabel(f"$\Delta$ {kind.upper()} (model - $\\bf{{baseline}}$) \n($\leftarrow$ better fit)")
 
-            ax.spines[['top', 'right']].set_visible(False)
-            ax.spines[['left', 'bottom']].set_linewidth(1.5)
-            ax.set_axisbelow(True)
-            ax.xaxis.set_tick_params(width=1.5, length = 10)
-            ax.yaxis.set_tick_params(width=1.5, length = 10)
 
     def plot_stochasticity_vs_depth(self, ax=None): 
         if ax is None:
@@ -418,9 +383,9 @@ class Analyzer():
         ax.set_xlabel("Stochasticity Level (%)\n")
         ax.set_ylabel("Inverse Temperature")
         ax.set_xticks(np.array(self.conditions) * 100)
-            
-        df = pd.melt(baseline, "player", value_vars = self.conditions)
-
+        
+        df = pd.melt(baseline, "player", value_vars = ["condition_inv_temp_0", "condition_inv_temp_1", "condition_inv_temp_2", "condition_inv_temp_3", "condition_inv_temp_4"])
+        df.variable = df.variable.apply(lambda x: get_stochasticity_levels(self.variant)[int(x.split("_")[-1])])
         df["condition"] = df["variable"].astype(float)
         df["inv_temp"] = df["value"]
         

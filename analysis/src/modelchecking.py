@@ -11,7 +11,7 @@ from utils import get_stochasticity_levels
 import json
 import copy
 
-def load_fit(variant, filter_fn, value_fn, folder = "fit", verbose = False): 
+def load_fit(variant, effort_version, filter_fn, value_fn, folder = "raw", verbose = False): 
     '''
     Loads and returns the fit data for a given model variant.
     Parameters:
@@ -23,7 +23,7 @@ def load_fit(variant, filter_fn, value_fn, folder = "fit", verbose = False):
     Raises:
     AssertionError: If the number of loaded fits is not equal to 100.
     '''
-    model = Model(filter_fn, value_fn, variant = variant)
+    model = Model(effort_version, filter_fn, value_fn, variant = variant)
     filedir = f"../fitted/{folder}/{variant}_{model.name}"
     
     fit = defaultdict(lambda: {})
@@ -33,10 +33,11 @@ def load_fit(variant, filter_fn, value_fn, folder = "fit", verbose = False):
         with open(f"{filedir}/{file}", "r") as f: 
             player_fit = Prodict(json.load(f))
 
-            if type(player_fit.filter_params) == dict:
+            if effort_version == "filter_adapt" or effort_version == "both":
                 player_fit["filter_params"] = {float(i): player_fit.filter_params[i] for i in player_fit.filter_params.keys()}
-            else: 
-                player_fit["filter_params"] = {"global_depth": player_fit.filter_params}
+            elif effort_version == "policy_compress":
+                player_fit["filter_params"] = player_fit.filter_params
+            else: raise ValueError(f"Invalid effort version: {effort_version}")
     
         fit[player] = player_fit.copy()
     
