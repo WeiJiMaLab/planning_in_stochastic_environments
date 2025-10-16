@@ -28,6 +28,8 @@ def merge_simulation_files(model_type):
             json.dump(all_params, f)
 
 if __name__ == "__main__":
-    # Merge files for both model types
-    merge_simulation_files("filter_adapt")
-    merge_simulation_files("policy_compress")
+    for f in glob.glob("../data/simulated*/"):
+        print(f)
+    # # Merge files for both model types
+    # merge_simulation_files("filter_adapt")
+    # merge_simulation_files("policy_compress")
