@@ -2,11 +2,9 @@ import json
 import glob
 from pathlib import Path
 
-def merge_simulation_files(model_type):
+def merge_simulation_files(folder):
     """Merge individual simulation files into a single file per condition"""
-    base_path = Path("../data")
     for variant in ["R", "V", "T"]:
-        folder = str(base_path / f"simulated_{model_type}")
         all_data = {}
         for file in glob.glob(folder + f"/{variant}/*_data.json"):
             with open(file) as f:
@@ -29,7 +27,5 @@ def merge_simulation_files(model_type):
 
 if __name__ == "__main__":
     for f in glob.glob("../data/simulated*/"):
-        print(f)
-    # # Merge files for both model types
-    # merge_simulation_files("filter_adapt")
-    # merge_simulation_files("policy_compress")
+        print("Merging simulation files for", f)
+        merge_simulation_files(f)
