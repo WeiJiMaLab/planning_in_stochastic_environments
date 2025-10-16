@@ -7,7 +7,7 @@ import argparse
 currentdir = os.getcwd()
 parentdir = os.path.dirname(currentdir) + "/src/"
 sys.path.insert(0, parentdir)
-from modeling import Model, filter_depth, value_path
+from modeling import Model, filter_depth, value_path, value_levelmean, value_sum, value_max
 from utils import (
     NpEncoder, 
     format_games, 
@@ -62,7 +62,7 @@ def simulate_model(user, data, effort_version, filter_fn, value_fn, type_, n_rep
         ])
 
     # Save results
-    filedir = f"../data/simulated_{effort_version}/{type_}"
+    filedir = f"../data/simulated_{effort_version}.{filter_fn.__name__}.{value_fn.__name__}/{type_}"
     os.makedirs(filedir, exist_ok=True)
     with open(f"{filedir}/{sim_user}_data.json", "w") as f:
         json.dump({"data": simulated_data}, f, cls=NpEncoder)
@@ -93,8 +93,11 @@ def main():
 
     # Run simulations for both model families
     for user in users:
-        simulate_model(user, data, "filter_adapt", filter_depth, value_path, type_, n_repeats, n_games)
+        # simulate_model(user, data, "filter_adapt", filter_depth, value_path, type_, n_repeats, n_games)
         simulate_model(user, data, "policy_compress", filter_depth, value_path, type_, n_repeats, n_games)
+        simulate_model(user, data, "policy_compress", filter_depth, value_levelmean, type_, n_repeats, n_games)
+        simulate_model(user, data, "policy_compress", filter_depth, value_sum, type_, n_repeats, n_games)
+        simulate_model(user, data, "policy_compress", filter_depth, value_max, type_, n_repeats, n_games)
 
 
 

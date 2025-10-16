@@ -290,109 +290,126 @@ def model_checking_analysis(folder="raw",
     fig.savefig(f"{save_dir}/{save_name}.png", bbox_inches='tight', dpi=600)
 
 
+def format_lmm_result(row):
+    """Format LMM results into LaTeX string"""
+    return (
+        f"LMM, "
+        f"$\\beta = {row['beta']:.2f}$, "
+        f"$t_{{{int(row['dof'])}}} = {row['tstat']:.1f}$, "
+        f"${report_p_value(row['pval'])}$"
+    )
 
-if __name__ == "__main__":
-    # helvetica_regular, helvetica_bold = set_helvetica_style()
-    # os.makedirs(f"figures/raw", exist_ok=True)
-    folder = "raw"
+def format_glmm_main_effect(row):
+    """Format GLMM main effect results into LaTeX string"""
+    return (
+        f"GLMM, "
+        f"main effect $\\beta = {row['beta_main']:.2f}$, "
+        f"$\\chi^2(1) = {row['chi2_main']:.1f}$, "
+        f"${report_p_value(row['pval_main'])}$"
+    )
 
-    # total_rt_analysis()
-    # model_comparison_analysis()
-    # model_checking_analysis( 
-    #         folder = folder,
-    #         effort_version = "policy_compress", 
-    #         filter_fn = "filter_depth", 
-    #         value_fn = "value_path"
-    # )
+def format_glmm_interaction(row):
+    """Format GLMM interaction results into LaTeX string"""
+    return (
+        f"GLMM, "
+        f"interaction $\\beta = {row['beta_inter']:.2f}$, "
+        f"$\\chi^2(1) = {row['chi2_inter']:.1f}$, "
+        f"${report_p_value(row['pval_inter'])}$"
+    )
 
-    # model_checking_analysis( 
-    #         folder = folder,
-    #         effort_version = "policy_compress", 
-    #         filter_fn = "filter_depth", 
-    #         value_fn = "value_levelmean"
-    # )
+def write_latex_results(df_results, glmm_results, output_file):
+    """Write formatted results to LaTeX file"""
+    with open(output_file, 'w') as f:
+        # Write LMM results
+        for (model, stoch, var), row in df_results.iterrows():
+            key = f"{model.replace(' ', '.')}.{stoch}.{var}"
+            f.write(f"\\pgfkeyssetvalue{{{key}}}{{{format_lmm_result(row)}}}\n")
 
-    # model_checking_analysis( 
-    #         folder = folder,
-    #         effort_version = "policy_compress", 
-    #         filter_fn = "filter_depth", 
-    #         value_fn = "value_max"
-    # )
+        # Write GLMM results
+        for (model, stoch, var), row in glmm_results.iterrows():
+            key = f"{model.replace(' ', '.')}.{stoch}.{var}"
+            f.write(f"\\pgfkeyssetvalue{{{key}}}{{{format_glmm_main_effect(row)}}}\n")
+            f.write(f"\\pgfkeyssetvalue{{{key + '.interaction'}}}{{{format_glmm_interaction(row)}}}\n")
 
-    # model_checking_analysis( 
-    #         folder = folder,
-    #         effort_version = "policy_compress", 
-    #         filter_fn = "filter_depth", 
-    #         value_fn = "value_sum"
-    # )
+def run_main_analysis(folder = "raw"): 
+    total_rt_analysis()
+    model_comparison_analysis()
+    model_checking_analysis( 
+            folder = folder,
+            effort_version = "policy_compress", 
+            filter_fn = "filter_depth", 
+            value_fn = "value_path"
+    )
 
-    # model_checking_analysis(
-    #         folder = folder,
-    #         effort_version = "policy_compress", 
-    #         filter_fn = "filter_depth", 
-    #         value_fn = "value_EV",
-    #         types = ["R", "T"],
-    #         plot_fns = ["greedydiff"]
-    # )
+    model_checking_analysis( 
+            folder = folder,
+            effort_version = "policy_compress", 
+            filter_fn = "filter_depth", 
+            value_fn = "value_levelmean"
+    )
 
-    # # Process model logs into LaTeX table
-    # # Combine all model log CSVs
-    # df_logs = pd.concat([pd.read_csv(f) for f in glob.glob(f"figures/{folder}/*/model_log.csv")])
+    model_checking_analysis( 
+            folder = folder,
+            effort_version = "policy_compress", 
+            filter_fn = "filter_depth", 
+            value_fn = "value_max"
+    )
+
+    model_checking_analysis( 
+            folder = folder,
+            effort_version = "policy_compress", 
+            filter_fn = "filter_depth", 
+            value_fn = "value_sum"
+    )
+
+    model_checking_analysis(
+            folder = folder,
+            effort_version = "policy_compress", 
+            filter_fn = "filter_depth", 
+            value_fn = "value_EV",
+            types = ["R", "T"],
+            plot_fns = ["greedydiff"]
+    )
+
+    # Process model logs into LaTeX table
+    df_logs = pd.concat([pd.read_csv(f) for f in glob.glob(f"figures/{folder}/*/model_log.csv")])
+    df_logs = df_logs.set_index(["Model Name", "Condition", "Variable", "Formula / Status"])
+    df_logs.to_latex(f"figures/model_log.tex", index=True)
     
-    # # Format and save as LaTeX table
-    # df_logs = df_logs.set_index(["Model Name", "Condition", "Variable", "Formula / Status"])
-    # df_logs.to_latex(f"figures/model_log.tex", index=True)
-    
-    # # Replace \cline with \cmidrule for better formatting
-    # with open('figures/model_log.tex', 'r') as f:
-    #     content = f.read().replace('\\cline', '\\cmidrule(lr)')
-    # with open('figures/model_log.tex', 'w') as f:
-    #     f.write(content)
+    # Replace \cline with \cmidrule for better formatting
+    with open('figures/model_log.tex', 'r') as f:
+        content = f.read().replace('\\cline', '\\cmidrule(lr)')
+    with open('figures/model_log.tex', 'w') as f:
+        f.write(content)
 
-
-    # Combine all model result CSVs
+    # Process model results into LaTeX format
+    # Regular LMM results
     df_results = pd.concat([
         pd.read_csv(f) for f in sorted(glob.glob(f"figures/{folder}/*/model_result.csv"))
     ])
     df_results = df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
     
-    # Write LMM results to tex file in pgf format
-    with open(f"figures/model_result.tex", 'w') as f:
-        for (model, stoch, var), row in df_results.iterrows():
-            key = f"{model.replace(' ', '.')}.{stoch}.{var}"
-            f.write(
-                f"\\pgfkeyssetvalue{{{key}}}{{LMM, "
-                f"$\\beta = {row['beta']:.2f}$, "
-                f"$t_{{{int(row['dof'])}}} = {row['tstat']:.1f}$, "
-                f"${report_p_value(row['pval'])}$}}\n"
-            )
-
-    # Combine all GLMM result CSVs
-    glmm_df_results = pd.concat([
+    # GLMM results
+    glmm_results = pd.concat([
         pd.read_csv(f) for f in sorted(glob.glob(f"figures/{folder}/*/glmm_result.csv"))
     ])
-    glmm_df_results = glmm_df_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
+    glmm_results = glmm_results.set_index(["Model Name", "Stochasticity Type", "Variable"])
 
-    # Write GLMM results to tex file in pgf format
-    with open(f"figures/model_result.tex", 'a') as f:
-        for (model, stoch, var), row in glmm_df_results.iterrows():
-            key = f"{model.replace(' ', '.')}.{stoch}.{var}"
-            
-            # Write main effect results
-            f.write(
-                f"\\pgfkeyssetvalue{{{key}}}{{GLMM, "
-                f"main effect $\\beta = {row['beta_main']:.2f}$, "
-                f"$\\chi^2(1) = {row['chi2_main']:.1f}$, "
-                f"${report_p_value(row['pval_main'])}$}}\n"
-            )
+    # Write all results to LaTeX file
+    write_latex_results(df_results, glmm_results, f"figures/model_result.tex")
 
-            # Write interaction results  
-            f.write(
-                f"\\pgfkeyssetvalue{{{key + '.interaction'}}}{{GLMM, "
-                f"interaction $\\beta = {row['beta_inter']:.2f}$, "
-                f"$\\chi^2(1) = {row['chi2_inter']:.1f}$, "
-                f"${report_p_value(row['pval_inter'])}$}}\n"
-            )
+
+
+
+if __name__ == "__main__":
+    helvetica_regular, helvetica_bold = set_helvetica_style()
+    os.makedirs(f"figures/raw", exist_ok=True)
+    folder = "raw"
+    model_comparison_analysis(folders = ["simulated_policy_compress"])
+
+
+
+    
 
 
             
