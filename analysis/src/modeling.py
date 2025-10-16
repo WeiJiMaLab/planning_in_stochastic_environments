@@ -67,7 +67,7 @@ class Model():
     def __init__(self, effort_version: str, filter_fn: callable, value_fn: callable, variant: str):
         assert effort_version in ["filter_adapt", "policy_compress", "both"], "Invalid effort version"
         self.effort_version, self.filter_fn, self.value_fn, self.variant = effort_version, filter_fn, value_fn, variant
-        self.name = self.effort_version + "." + self.value_fn.__name__  + "." + self.filter_fn.__name__ 
+        self.name = self.effort_version + "." + self.filter_fn.__name__ + "." + self.value_fn.__name__
         self.default_params = {p:p for p in get_stochasticity_levels(self.variant)}
         self.default_bounds = {
                 "inv_temp": (-5, 5),
