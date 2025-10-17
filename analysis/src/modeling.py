@@ -152,8 +152,8 @@ class Model():
             -----------
             params : dict
                 Dictionary containing model parameters, including:
-                - "inv_temp": Inverse temperature parameter for the sigmoid function.
-                - "condition_lapse_*": Lapse rate parameters for each condition.
+                - "inv_temp": Inverse temperature parameter for the sigmoid function. Note that this is in log space, so can take negative or positive values.
+                - "condition_inv_temp_*": Inverse temperature parameters for each condition.
             pov_array : xarray.DataArray
                 Array containing the filtered point of view data.
             Returns:
