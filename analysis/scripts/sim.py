@@ -7,7 +7,9 @@ import argparse
 currentdir = os.getcwd()
 parentdir = os.path.dirname(currentdir) + "/src/"
 sys.path.insert(0, parentdir)
-from modeling import Model, filter_depth, value_path, value_levelmean, value_sum, value_max
+from modeling import Model
+from modelfilters import filter_depth, filter_rank, filter_value
+from modelvalues import value_path, value_EV, value_max, value_sum, value_levelmean
 from utils import (
     NpEncoder, 
     get_stochasticity_levels, 
@@ -92,13 +94,10 @@ def main():
 
     # Run simulations for both model families
     for user in users:
-        # simulate_model(user, data, "filter_adapt", filter_depth, value_path, type_, n_repeats, n_games)
         simulate_model(user, data, "policy_compress", filter_depth, value_path, type_, n_repeats, n_games)
         simulate_model(user, data, "policy_compress", filter_depth, value_levelmean, type_, n_repeats, n_games)
         simulate_model(user, data, "policy_compress", filter_depth, value_sum, type_, n_repeats, n_games)
         simulate_model(user, data, "policy_compress", filter_depth, value_max, type_, n_repeats, n_games)
-
-
 
 if __name__ == "__main__":
     main()

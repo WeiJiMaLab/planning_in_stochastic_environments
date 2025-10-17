@@ -2,7 +2,7 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 from utils import format_games, make_pov_array, preprocess_data
-from modeling import value_path, Model
+from modeling import Model
 from collections import defaultdict
 import tqdm as tqdm
 import os
@@ -87,9 +87,6 @@ def trialwise_rewards(game_data, baseline = "none"):
     else: 
         assert False, "InputError: Baseline must be one of: none, random, greedy"
 
-def trialwise_vdiff(game_data):
-    boards_pov = make_pov_array(game_data.boards, game_data.paths)
-    return value_path(boards_pov)
 
 def trialwise_greedydiff(game_data): 
     boards_pov = make_pov_array(game_data.boards, game_data.paths)
