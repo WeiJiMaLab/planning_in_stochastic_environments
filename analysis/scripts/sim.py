@@ -17,8 +17,7 @@ from utils import (
     get_data
 )
 
-
-def simulate_model(user, data, effort_version, filter_fn, value_fn, type_, n_repeats, n_games):
+def simulate_model(user, games, effort_version, filter_fn, value_fn, type_, n_repeats, n_games):
     """Run simulation for a single user with specified model type"""
     sim_user = f"sim_{user}"
     model = Model(effort_version, filter_fn, value_fn, type_)
@@ -40,8 +39,7 @@ def simulate_model(user, data, effort_version, filter_fn, value_fn, type_, n_rep
             "condition_inv_temp_3": np.random.uniform(-5, 5),
             "condition_inv_temp_4": np.random.uniform(-5, 5)
         }
-    
-    games = data[user]
+
     simulated_data = []
 
     # Run simulations
@@ -94,10 +92,11 @@ def main():
 
     # Run simulations for both model families
     for user in users:
-        simulate_model(user, data, "policy_compress", filter_depth, value_path, type_, n_repeats, n_games)
-        simulate_model(user, data, "policy_compress", filter_depth, value_levelmean, type_, n_repeats, n_games)
-        simulate_model(user, data, "policy_compress", filter_depth, value_sum, type_, n_repeats, n_games)
-        simulate_model(user, data, "policy_compress", filter_depth, value_max, type_, n_repeats, n_games)
+        games = data[user]
+        simulate_model(user, games, "policy_compress", filter_depth, value_path, type_, n_repeats, n_games)
+        simulate_model(user, games, "policy_compress", filter_depth, value_levelmean, type_, n_repeats, n_games)
+        simulate_model(user, games, "policy_compress", filter_depth, value_sum, type_, n_repeats, n_games)
+        simulate_model(user, games, "policy_compress", filter_depth, value_max, type_, n_repeats, n_games)
 
 if __name__ == "__main__":
     main()

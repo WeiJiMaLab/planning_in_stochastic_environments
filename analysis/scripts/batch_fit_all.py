@@ -10,9 +10,8 @@ from modeling import Model, MultiStart, get_effort_filter_value_options
 import json
 
 # process a single player's data for all model combinations
-def process_player(player, data, type_, n_starts): 
+def process_player(player, games, type_, n_starts): 
     effort_versions, filter_fns, value_fns = get_effort_filter_value_options(type_)
-    games = data[player]
     
     for effort_version in effort_versions: 
         if effort_version == "filter_adapt":
@@ -56,5 +55,6 @@ if __name__ == "__main__":
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
             player = list(data.keys())[jobid]
+            games = data[player]
             print(f"Processing job ID {jobid} for player {player} for type {type_}")
-            process_player(player, data, type_, n_starts)
+            process_player(player, games, type_, n_starts)

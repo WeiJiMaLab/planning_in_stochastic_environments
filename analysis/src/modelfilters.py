@@ -1,4 +1,5 @@
 import xarray as xr
+import numpy as np
 
 # Filter functions
 def filter_value(pov_array: xr.DataArray, filter_params: dict= {"value": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]}):

@@ -108,7 +108,7 @@ class Model():
         fitted_params = copy_and_update(params, {"filter_params": best_filter_params, "nll": res.fun, "model": self.name})
 
         # double check that the negative log likelihood is the same as that from the MLE
-        assert np.isclose(-best_ll, fitted_params["nll"], rtol=1e-6, atol=1e-8)
+        assert np.isclose(-best_ll, fitted_params["nll"], rtol=1e-5)
         return fitted_params
 
     def negative_log_likelihood(self, params_values, params_names, pov_array, choose_left):

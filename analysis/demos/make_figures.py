@@ -10,8 +10,8 @@ sys.path.insert(0, parentdir)
 from modeling import get_effort_filter_value_options
 from modelchecking import trialwise_rewards, trialwise_greedydiff, trialwise_chooseleft
 from analysis import Analyzer, lmm, glmm
-from plots import set_helvetica_style
-from utils import colormaps, report_p_value, strsimplify, get_stochasticity_levels, alphabet
+from plots import set_helvetica_style, colormaps
+from utils import report_p_value, strsimplify, get_stochasticity_levels, alphabet
 
 
 def get_colormap(type_):

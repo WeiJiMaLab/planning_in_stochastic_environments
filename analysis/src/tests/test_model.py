@@ -349,7 +349,6 @@ def test_conditional_inv_temp_does_not_affect_filter_adapt(type_,filter_fn, valu
     p_left = model.get_prob_left(params, pov_array)
     assert np.allclose(p_left, 0.5)
 
-
 @pytest.mark.parametrize("type_", ["R", "V", "T"])
 @pytest.mark.parametrize("filter_fn", [filter_depth, filter_rank, filter_value])
 @pytest.mark.parametrize("value_fn", [value_path, value_max, value_sum, value_levelmean])
@@ -391,7 +390,6 @@ def test_inv_temp_does_not_affect_policy_compress(type_,filter_fn, value_fn):
     }
     p_left = model.get_prob_left(params, pov_array)
     assert np.allclose(p_left, 0.5)
-
 
 @pytest.mark.parametrize("type_", ["R", "V", "T"])
 @pytest.mark.parametrize("effort_version", ["filter_adapt", "policy_compress"])
