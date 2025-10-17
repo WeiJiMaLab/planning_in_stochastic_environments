@@ -10,7 +10,6 @@ sys.path.insert(0, parentdir)
 from modeling import Model, filter_depth, value_path, value_levelmean, value_sum, value_max
 from utils import (
     NpEncoder, 
-    format_games, 
     get_stochasticity_levels, 
     get_jobid, 
     get_data
@@ -45,7 +44,7 @@ def simulate_model(user, data, effort_version, filter_fn, value_fn, type_, n_rep
 
     # Run simulations
     for _ in tqdm.tqdm(range(n_repeats), desc=f"simulating {user}"):
-        prediction = model.predict(params, games)
+        prediction = model.sample(params, games)
         simulated_data.extend([
             {
                 "name": f"game_{user}_c{condition}_g{game}",

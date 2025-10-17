@@ -11,13 +11,6 @@ import warnings
 ########################################################
 # Helper functions
 ########################################################
-
-class mapdict(dict):
-    """dot.notation access to dictionary attributes"""
-    __getattr__ = dict.get
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
 def alphabet(n):
     """Return the nth letter of the alphabet (0-indexed)"""
     return chr(ord('A') + n)
@@ -84,7 +77,7 @@ def format_games(games):
     '''
     removes the practice games from the list of games
     '''
-    return [mapdict(g) for g in games if not "practice" in g["name"]]
+    return [Prodict(g) for g in games if not "practice" in g["name"]]
 
 def preprocess_data(games: list):
     '''

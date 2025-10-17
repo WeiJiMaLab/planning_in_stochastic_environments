@@ -107,8 +107,7 @@ def test_symmetric_equalprob(type_,effort_version, filter_fn, value_fn):
         value_fn = value_fn,
         variant = type_
     )
-    filter_pov_array = model.filter_fn(pov_array)
-    p_left = model.get_p_left(params, filter_pov_array)
+    p_left = model.get_prob_left(params, pov_array)
     assert np.allclose(p_left, 0.5)
 
 
@@ -138,8 +137,7 @@ def test_symmetric_equalprob_EV(type_,effort_version, filter_fn, value_fn):
         value_fn = value_fn,
         variant = type_
     )
-    filter_pov_array = model.filter_fn(pov_array)
-    p_left = model.get_p_left(params, filter_pov_array)
+    p_left = model.get_prob_left(params, pov_array)
     assert np.allclose(p_left, 0.5)
 
 @pytest.mark.parametrize("type_", ["R", "V", "T"])
@@ -172,8 +170,8 @@ def test_asymmetric_always_left(type_,effort_version, filter_fn, value_fn):
         variant = type_
     )
 
-    filter_pov_array = model.filter_fn(pov_array, {"depth": [7], "rank": [9], "value": [9]})
-    p_left = model.get_p_left(params, filter_pov_array)
+    p_left = model.get_prob_left(params, pov_array)
+    p_left = p_left.sel(filter_params = p_left.filter_params.max())
     assert np.allclose(p_left, 1)
 
 @pytest.mark.parametrize("type_", ["R", "T"])
@@ -206,17 +204,14 @@ def test_asymmetric_always_left_EV(type_,effort_version, filter_fn, value_fn):
         variant = type_
     )
 
-    filter_pov_array = model.filter_fn(pov_array, {"depth": [7], "rank": [9], "value": [9]})
-    p_left = model.get_p_left(params, filter_pov_array)
+    p_left = model.get_prob_left(params, pov_array)
+    p_left = p_left.sel(filter_params = p_left.filter_params.max())
     assert np.allclose(p_left.sel(conditions = get_stochasticity_levels(type_)[0]), 1)
     assert np.allclose(p_left.sel(conditions = get_stochasticity_levels(type_)[1]), 1)
     assert np.allclose(p_left.sel(conditions = get_stochasticity_levels(type_)[2]), 1)
     assert np.allclose(p_left.sel(conditions = get_stochasticity_levels(type_)[3]), 1)
     # in EV, we should get a 50% chance of moving left for maximum stochasticity
     assert np.allclose(p_left.sel(conditions = get_stochasticity_levels(type_)[4]), 0.5)
-
-
-
 
 @pytest.mark.parametrize("type_", ["R", "V", "T"])
 @pytest.mark.parametrize("effort_version", ["filter_adapt", "policy_compress"])
@@ -250,8 +245,8 @@ def test_lapse(type_,effort_version, filter_fn, value_fn):
         variant = type_
     )
 
-    filter_pov_array = model.filter_fn(pov_array, {"depth": [7], "rank": [9], "value": [9]})
-    p_left = model.get_p_left(params, filter_pov_array)
+    p_left = model.get_prob_left(params, pov_array)
+    p_left = p_left.sel(filter_params = p_left.filter_params.max())
     assert np.allclose(p_left, 0.5)
 
 @pytest.mark.parametrize("type_", ["R", "V", "T"])
@@ -275,8 +270,8 @@ def test_inv_temp(type_, filter_fn, value_fn):
     )
 
     # we choose the highest filters so we don't actually filter anything out
-    filter_pov_array = model.filter_fn(pov_array, {"depth": [7], "rank": [9], "value": [9]})
-    p_left = model.get_p_left(params, filter_pov_array)
+    p_left = model.get_prob_left(params, pov_array)
+    p_left = p_left.sel(filter_params = p_left.filter_params.max())
     assert np.allclose(p_left, 0.5)
 
 @pytest.mark.parametrize("type_", ["R", "V", "T"])
@@ -307,8 +302,8 @@ def test_conditional_inv_temp(type_,filter_fn, value_fn):
     )
 
     # we choose the highest filters so we don't actually filter anything out
-    filter_pov_array = model.filter_fn(pov_array, {"depth": [7], "rank": [9], "value": [9]})
-    p_left = model.get_p_left(params, filter_pov_array)
+    p_left = model.get_prob_left(params, pov_array)
+    p_left = p_left.sel(filter_params = p_left.filter_params.max())
     assert np.allclose(p_left.sel(conditions = get_stochasticity_levels(type_)[0]), 1)
     assert np.allclose(p_left.sel(conditions = get_stochasticity_levels(type_)[1]), 1)
     assert np.allclose(p_left.sel(conditions = get_stochasticity_levels(type_)[2]), 0.5)
@@ -338,8 +333,8 @@ def test_conditional_inv_temp_does_not_affect_filter_adapt(type_,filter_fn, valu
         value_fn = value_fn,
         variant = type_
     )
-    filter_pov_array = model.filter_fn(pov_array, {"depth": [7], "rank": [9], "value": [9]})
-    p_left = model.get_p_left(params, filter_pov_array)
+    p_left = model.get_prob_left(params, pov_array)
+    p_left = p_left.sel(filter_params = p_left.filter_params.max())
     assert np.allclose(p_left, 1)
     
     params = {
@@ -351,7 +346,7 @@ def test_conditional_inv_temp_does_not_affect_filter_adapt(type_,filter_fn, valu
         "condition_inv_temp_3": 10,
         "condition_inv_temp_4": 10,
     }
-    p_left = model.get_p_left(params, filter_pov_array)
+    p_left = model.get_prob_left(params, pov_array)
     assert np.allclose(p_left, 0.5)
 
 
@@ -381,8 +376,8 @@ def test_inv_temp_does_not_affect_policy_compress(type_,filter_fn, value_fn):
         variant = type_
     )
 
-    filter_pov_array = model.filter_fn(pov_array, {"depth": [7], "rank": [9], "value": [9]})
-    p_left = model.get_p_left(params, filter_pov_array)
+    p_left = model.get_prob_left(params, pov_array)
+    p_left = p_left.sel(filter_params = p_left.filter_params.max())
     assert np.allclose(p_left, 1)
 
     params = {
@@ -394,7 +389,7 @@ def test_inv_temp_does_not_affect_policy_compress(type_,filter_fn, value_fn):
         "condition_inv_temp_3": -100,
         "condition_inv_temp_4": -100,
     }
-    p_left = model.get_p_left(params, filter_pov_array)
+    p_left = model.get_prob_left(params, pov_array)
     assert np.allclose(p_left, 0.5)
 
 
@@ -438,9 +433,9 @@ def test_asymmetric_NLL(type_,effort_version,filter_fn,value_fn):
         variant = type_
     )
 
-    filter_pov_array = model.filter_fn(pov_array, {"depth": [7], "rank": [9], "value": [9]})
+    pov_array = model.filter_fn(pov_array, {"depth": [7], "rank": [9], "value": [9]})
     choose_left = xr.DataArray(np.ones((5, 5)), dims = ["conditions", "games"])
     choose_left["conditions"] = get_stochasticity_levels(type_)
-    nll_low = model.negative_log_likelihood(params_low_inv_temp.values(), params_low_inv_temp.keys(), filter_pov_array, choose_left)
-    nll_high = model.negative_log_likelihood(params_high_inv_temp.values(), params_high_inv_temp.keys(), filter_pov_array, choose_left)
+    nll_low = model.negative_log_likelihood(params_low_inv_temp.values(), params_low_inv_temp.keys(), pov_array, choose_left)
+    nll_high = model.negative_log_likelihood(params_high_inv_temp.values(), params_high_inv_temp.keys(), pov_array, choose_left)
     assert nll_low > nll_high

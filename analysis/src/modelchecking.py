@@ -142,7 +142,7 @@ def simulate_model(data, model, fitted_params, x_fun, y_fun, iters = 1):
 
         for _ in range(iters):
             games = format_games(data[player]["data"])
-            model_data = model.predict(fitted_params[player], games)
+            model_data = model.sample(fitted_params[player], games)
             x__.append(x_fun(model_data))
             y__.append(y_fun(model_data))
         
@@ -247,8 +247,6 @@ def heirarchical_means(group, x = "x", y = "y"):
     #calculate aggregate statistics
     out_x = np.mean(mean_x, axis = 0)
     out_y = np.mean(mean_y, axis = 0)
-
-    #variance of hierarchical means
 
     #this is the typical SEM^2
     var_mean = np.var(mean_y, axis = 0, ddof = 1) / len(mean_y)

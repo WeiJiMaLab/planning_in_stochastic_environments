@@ -193,7 +193,6 @@ class Analyzer():
         reaction_time_data = []
         for player in self.data.keys(): 
             for game in format_games(self.data[player]["data"]):
-                #to correct for an error where the number of trials was repeated twice
                 reaction_time_data.append(pd.Series({
                     "player": player, 
                     "game": game["name"],
